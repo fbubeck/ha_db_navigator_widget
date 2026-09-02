@@ -1,4 +1,4 @@
-const DB_NAVIGATOR_CARD_VERSION = "0.3.4";
+const DB_NAVIGATOR_CARD_VERSION = "0.4.0";
 
 class DBNavigatorCard extends HTMLElement {
   constructor() {
@@ -23,6 +23,7 @@ class DBNavigatorCard extends HTMLElement {
       show_time_picker: true,
       navigation_step_minutes: 60,
       appearance: "auto",
+      density: "comfortable",
       ...config,
     };
     this._lastSignature = "";
@@ -32,6 +33,19 @@ class DBNavigatorCard extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
     this._render();
+  }
+
+  connectedCallback() {
+    if (this._clockTimer) return;
+    this._clockTimer = setInterval(() => {
+      this._lastSignature = "";
+      this._render();
+    }, 30000);
+  }
+
+  disconnectedCallback() {
+    clearInterval(this._clockTimer);
+    this._clockTimer = null;
   }
 
   getCardSize() {
@@ -100,6 +114,114 @@ class DBNavigatorCard extends HTMLElement {
     const realDate = this._asDate(real);
     if (!plannedDate || !realDate) return 0;
     return Math.round((realDate.getTime() - plannedDate.getTime()) / 60000);
+  }
+
+  _countdownInfo(value, now = Date.now()) {
+    const date = this._asDate(value);
+    if (!date) return null;
+    const minutes = Math.ceil((date.getTime() - now) / 60000);
+    if (minutes < -120) return null;
+    if (minutes < 0) return { minutes, status: "departed", label: `vor ${Math.abs(minutes)} Min.` };
+    if (minutes === 0) return { minutes, status: "now", label: "jetzt" };
+    return { minutes, status: minutes <= 5 ? "soon" : "future", label: `in ${minutes} Min.` };
+  }
+
+  _problemInfo(raw) {
+    const value = String(raw || "").trim();
+    if (!value || ["null", "none"].includes(value.toLowerCase())) return null;
+    const lower = value.toLowerCase();
+    if (lower.includes("canceled") || lower.includes("cancelled") || lower.includes("fällt aus")) {
+      return { kind: "cancelled", label: "Verbindung fällt aus" };
+    }
+    if (lower.includes("stop_not_applicable") || lower.includes("halt entfällt")) {
+      return { kind: "cancelled-stop", label: "Halt entfällt" };
+    }
+    if (lower.includes("change_not_accessible") || lower.includes("anschluss")) {
+      return { kind: "connection", label: "Anschluss gefährdet" };
+    }
+    if (lower.includes("delay") || lower.includes("verspät")) {
+      return { kind: "delay", label: "Starke Verspätung" };
+    }
+    return { kind: "notice", label: value };
+  }
+
+  _platformInfo(step, type) {
+    const prefix = type === "arrival" ? "Arrival" : "Departure";
+    const snake = type === "arrival" ? "arrival" : "departure";
+    const planned = this._attr(step,
+      `${prefix} Platform Planned`, `${prefix} Platform`,
+      `${snake}_platform_planned`, `${snake}_platform`
+    );
+    const real = this._attr(step,
+      `${prefix} Platform Real`, `${prefix} Platform Actual`,
+      `${snake}_platform_real`, `${snake}_platform_actual`
+    );
+    return { planned, real, changed: Boolean(planned && real && String(planned) !== String(real)) };
+  }
+
+  _renderPlatform(step, type, compact = false) {
+    const platform = this._platformInfo(step, type);
+    if (!platform.planned && !platform.real) return "";
+    const prefix = compact ? "Gl." : "Gleis";
+    if (platform.changed) {
+      return `<small class="platform-change"><s>${prefix} ${this._escape(platform.planned)}</s><strong>${prefix} ${this._escape(platform.real)}</strong></small>`;
+    }
+    return `<small>${prefix} ${this._escape(platform.real || platform.planned)}</small>`;
+  }
+
+  _transferInfo(previous, next) {
+    if (!previous || !next) return null;
+    const arrival = this._attr(previous, "Arrival Time Real", "Arrival Time", "arrival_time_real", "arrival_time");
+    const departure = this._attr(next, "Departure Time Real", "Departure Time", "departure_time_real", "departure_time");
+    const arrivalDate = this._asDate(arrival);
+    const departureDate = this._asDate(departure);
+    if (!arrivalDate || !departureDate) return null;
+    const minutes = Math.round((departureDate.getTime() - arrivalDate.getTime()) / 60000);
+    if (minutes < 0) return { minutes, status: "missed", label: "Umstieg verpasst" };
+    if (minutes <= 2) return { minutes, status: "critical", label: "Umstieg gefährdet" };
+    if (minutes <= 5) return { minutes, status: "tight", label: "Umstieg knapp" };
+    return { minutes, status: "relaxed", label: "Umstieg entspannt" };
+  }
+
+  _journeyTransferRisk(details) {
+    const transports = details
+      .map((step, index) => ({ step, index, kind: this._transport(this._attr(step, "Name", "name")).kind }))
+      .filter((item) => item.kind !== "walk");
+    const risks = [];
+    for (let index = 0; index < transports.length - 1; index += 1) {
+      const info = this._transferInfo(transports[index].step, transports[index + 1].step);
+      if (info) risks.push(info);
+    }
+    const priority = { missed: 4, critical: 3, tight: 2, relaxed: 1 };
+    return risks.sort((left, right) => priority[right.status] - priority[left.status])[0] || null;
+  }
+
+  _journeyRankings(states) {
+    const usable = states.filter((state) => !["cancelled", "cancelled-stop"].includes(this._problemInfo(this._attr(state.attributes, "Problems", "problems"))?.kind));
+    const candidates = usable.length ? usable : states;
+    const rows = candidates.map((state) => {
+      const attr = state.attributes || {};
+      const departure = this._asDate(this._attr(attr, "Departure Time Real", "Departure Time", "departure_time_real", "departure_time"));
+      const arrival = this._asDate(this._attr(attr, "Arrival Time Real", "Arrival Time", "arrival_time_real", "arrival_time"));
+      return {
+        state,
+        arrival: arrival?.getTime() ?? Infinity,
+        duration: departure && arrival ? arrival.getTime() - departure.getTime() : Infinity,
+        transfers: Number(this._attr(attr, "Transfers", "transfers") ?? Infinity),
+      };
+    });
+    const minima = {
+      arrival: Math.min(...rows.map((row) => row.arrival)),
+      duration: Math.min(...rows.map((row) => row.duration)),
+      transfers: Math.min(...rows.map((row) => row.transfers)),
+    };
+    return Object.fromEntries(rows.map((row) => {
+      const labels = [];
+      if (Number.isFinite(minima.arrival) && row.arrival === minima.arrival) labels.push("Früheste Ankunft");
+      if (Number.isFinite(minima.duration) && row.duration === minima.duration) labels.push("Schnellste");
+      if (Number.isFinite(minima.transfers) && row.transfers === minima.transfers) labels.push(minima.transfers === 0 ? "Direkt" : "Wenigste Umstiege");
+      return [row.state.entity_id, labels];
+    }));
   }
 
   _parseDetails(raw) {
@@ -245,22 +367,10 @@ class DBNavigatorCard extends HTMLElement {
   }
 
   _renderTransfer(details, index) {
-    const previous = details[index - 1];
-    const next = details[index + 1];
-    let label = "🚶";
-    let tight = false;
-    if (previous && next) {
-      const arrival = this._attr(previous, "Arrival Time Real", "Arrival Time", "arrival_time_real", "arrival_time");
-      const departure = this._attr(next, "Departure Time Real", "Departure Time", "departure_time_real", "departure_time");
-      const arrivalDate = this._asDate(arrival);
-      const departureDate = this._asDate(departure);
-      if (arrivalDate && departureDate) {
-        const minutes = Math.max(0, Math.round((departureDate - arrivalDate) / 60000));
-        label = minutes === 0 ? "⚡" : `${minutes}′`;
-        tight = minutes <= 2;
-      }
-    }
-    return `<span class="segment transfer ${tight ? "tight" : ""}" title="Umstiegszeit">${label}</span>`;
+    const info = this._transferInfo(details[index - 1], details[index + 1]);
+    const label = info ? (info.minutes <= 0 ? "⚡" : `${info.minutes}′`) : "🚶";
+    const status = info?.status || "unknown";
+    return `<span class="segment transfer ${status}" title="${this._escape(info?.label || "Fußweg und Umstieg")}">${label}</span>`;
   }
 
   _renderSegments(attributes) {
@@ -271,6 +381,8 @@ class DBNavigatorCard extends HTMLElement {
     }
     if (!details.length) return "";
 
+    const problem = this._problemInfo(this._attr(attributes, "Problems", "problems"));
+    let problemMarked = false;
     const segments = details.map((step, index) => {
       const transport = this._transport(this._attr(step, "Name", "name"));
       if (transport.kind === "walk") return this._renderTransfer(details, index);
@@ -278,7 +390,10 @@ class DBNavigatorCard extends HTMLElement {
         this._attr(step, "Departure", "departure"),
         this._attr(step, "Arrival", "arrival"),
       ].filter(Boolean);
-      return `<span class="segment ${transport.kind}" title="${this._escape(titleParts.join(" → "))}">${this._escape(transport.label)}</span>`;
+      const affected = Boolean(problem && !problemMarked);
+      if (affected) problemMarked = true;
+      const title = affected ? `${problem.label} · ${titleParts.join(" → ")}` : titleParts.join(" → ");
+      return `<span class="segment ${transport.kind} ${affected ? "affected" : ""}" title="${this._escape(title)}">${this._escape(transport.label)}</span>`;
     }).join("");
     return `<div class="segments">${segments}</div>`;
   }
@@ -476,8 +591,9 @@ class DBNavigatorCard extends HTMLElement {
       if (!products.some((item) => item.token === token)) products.push({ ...product, token });
     }
     const visible = products.slice(0, 2);
+    const countdown = this._countdownInfo(departureTime);
     return `<span class="route-next">
-      <span class="route-next-time"><small>Abfahrt</small><strong>${this._escape(this._formatTime(departureTime))}</strong></span>
+      <span class="route-next-time"><small>${this._escape(countdown?.label || "Abfahrt")}</small><strong>${this._escape(this._formatTime(departureTime))}</strong></span>
       <span class="route-next-products">${visible.map((product) => `<b class="mini-product ${product.kind}">${this._escape(product.label)}</b>`).join("")}${products.length > 2 ? `<em>+${products.length - 2}</em>` : ""}</span>
     </span>`;
   }
@@ -491,8 +607,9 @@ class DBNavigatorCard extends HTMLElement {
     const firstDeparture = this._attr(first?.attributes, "Departure Time Real", "Departure Time", "departure_time_real", "departure_time");
     const preview = this._renderRoutePreview(first, firstDeparture);
     const isOpen = this._expandedRoutes[key] ?? route.open ?? index === 0;
+    const rankings = this._journeyRankings(states);
     const journeys = states.length
-      ? `<div class="list">${states.map((state) => this._renderJourney(state)).join("")}</div>`
+      ? `<div class="list">${states.map((state) => this._renderJourney(state, rankings[state.entity_id] || [])).join("")}</div>`
       : `<div class="empty"><ha-icon icon="mdi:train-off"></ha-icon>Keine Verbindungen für diese Strecke gefunden.<code>${this._escape(this._activePrefix(route) || (route.entities || []).join?.(", ") || "Keine Entities konfiguriert")}</code></div>`;
 
     return `<section class="route-section ${isOpen ? "open" : ""}">
@@ -521,13 +638,15 @@ class DBNavigatorCard extends HTMLElement {
   _renderJourneyDetails(state) {
     const attr = state.attributes || {};
     const details = this._parseDetails(this._attr(attr, "Details", "details"));
-    const problems = this._attr(attr, "Problems", "problems");
+    const problem = this._problemInfo(this._attr(attr, "Problems", "problems"));
 
     const legs = details.length ? details.map((step, index) => {
       const transport = this._transport(this._attr(step, "Name", "name"));
       if (transport.kind === "walk") {
         const transfer = this._renderTransfer(details, index);
-        return `<div class="walk-detail"><span class="walk-icon">${transfer}</span><span>Fußweg und Umstieg</span></div>`;
+        const risk = this._transferInfo(details[index - 1], details[index + 1]);
+        const riskText = risk ? `${risk.label} · ${Math.max(0, risk.minutes)} Min.` : "Fußweg und Umstieg";
+        return `<div class="walk-detail ${risk?.status || "unknown"}"><span class="walk-icon">${transfer}</span><span>${this._escape(riskText)}</span></div>`;
       }
 
       const departure = this._attr(step, "Departure", "departure") || "Abfahrt";
@@ -536,15 +655,13 @@ class DBNavigatorCard extends HTMLElement {
       const depReal = this._attr(step, "Departure Time Real", "departure_time_real");
       const arrPlanned = this._attr(step, "Arrival Time", "arrival_time");
       const arrReal = this._attr(step, "Arrival Time Real", "arrival_time_real");
-      const depPlatform = this._attr(step, "Departure Platform", "departure_platform");
-      const arrPlatform = this._attr(step, "Arrival Platform", "arrival_platform");
 
       return `<div class="leg">
         <div class="stop-row">
           <span class="stop-marker start"></span>
           <span class="stop-kind">Ab</span>
           <span class="stop-product ${transport.kind}">${this._escape(transport.label)}</span>
-          <span class="stop-main"><b>${this._escape(departure)}</b>${depPlatform ? `<small>Gleis ${this._escape(depPlatform)}</small>` : ""}</span>
+          <span class="stop-main"><b>${this._escape(departure)}</b>${this._renderPlatform(step, "departure")}</span>
           ${this._renderStopTime(depPlanned, depReal)}
         </div>
         <div class="leg-line"></div>
@@ -552,7 +669,7 @@ class DBNavigatorCard extends HTMLElement {
           <span class="stop-marker end"></span>
           <span class="stop-kind">An</span>
           <span class="stop-product ${transport.kind}">${this._escape(transport.label)}</span>
-          <span class="stop-main"><b>${this._escape(arrival)}</b>${arrPlatform ? `<small>Gleis ${this._escape(arrPlatform)}</small>` : ""}</span>
+          <span class="stop-main"><b>${this._escape(arrival)}</b>${this._renderPlatform(step, "arrival")}</span>
           ${this._renderStopTime(arrPlanned, arrReal)}
         </div>
       </div>`;
@@ -560,12 +677,12 @@ class DBNavigatorCard extends HTMLElement {
 
     return `<div class="journey-detail-inner">
       <div class="detail-title"><span>Reiseverlauf</span><button data-more-info="${this._escape(state.entity_id)}" title="Home-Assistant-Entität öffnen"><ha-icon icon="mdi:information-outline"></ha-icon></button></div>
-      ${problems && !["null", "none"].includes(String(problems).toLowerCase()) ? `<div class="detail-problem"><ha-icon icon="mdi:alert-circle-outline"></ha-icon><span>${this._escape(problems)}</span></div>` : ""}
+      ${problem ? `<div class="detail-problem ${problem.kind}"><ha-icon icon="mdi:alert-circle-outline"></ha-icon><strong>${this._escape(problem.label)}</strong></div>` : ""}
       <div class="legs">${legs}</div>
     </div>`;
   }
 
-  _renderJourney(state) {
+  _renderJourney(state, rankings = []) {
     const attr = state.attributes || {};
     const depPlanned = this._attr(attr, "Departure Time", "departure_time");
     const depReal = this._attr(attr, "Departure Time Real", "departure_time_real");
@@ -575,34 +692,34 @@ class DBNavigatorCard extends HTMLElement {
     const arrival = this._attr(attr, "Arrival", "arrival_station", "destination") || "Ziel";
     const duration = this._attr(attr, "Duration", "duration") || "";
     const transfers = this._attr(attr, "Transfers", "transfers");
-    const rawProblems = this._attr(attr, "Problems", "problems");
-    const problems = ["null", "none"].includes(String(rawProblems || "").toLowerCase()) ? null : rawProblems;
+    const problem = this._problemInfo(this._attr(attr, "Problems", "problems"));
     const details = this._parseDetails(this._attr(attr, "Details", "details"));
     const first = details.find((step) => this._transport(this._attr(step, "Name", "name")).kind !== "walk") || {};
     const last = [...details].reverse().find((step) => this._transport(this._attr(step, "Name", "name")).kind !== "walk") || {};
-    const departurePlatform = this._attr(first, "Departure Platform", "departure_platform");
-    const arrivalPlatform = this._attr(last, "Arrival Platform", "arrival_platform");
     const transferText = transfers !== null && transfers !== undefined
       ? `${transfers} ${Number(transfers) === 1 ? "Umstieg" : "Umstiege"}`
       : "";
     const isExpanded = Boolean(this._expandedJourneys[state.entity_id]);
+    const countdown = this._countdownInfo(depReal || depPlanned);
+    const transferRisk = this._journeyTransferRisk(details);
 
-    return `<article class="journey ${isExpanded ? "expanded" : ""}" data-entity="${this._escape(state.entity_id)}">
+    return `<article class="journey ${isExpanded ? "expanded" : ""} ${problem ? `has-problem ${problem.kind}` : ""}" data-entity="${this._escape(state.entity_id)}">
       <div class="journey-summary" data-toggle-journey="${this._escape(state.entity_id)}" tabindex="0" role="button" aria-expanded="${isExpanded}" aria-label="Details der Verbindung ${this._escape(departure)} nach ${this._escape(arrival)} ${isExpanded ? "schließen" : "öffnen"}">
+      <div class="journey-badges">${rankings.map((label) => `<span>${this._escape(label)}</span>`).join("")}${transferRisk ? `<span class="transfer-risk ${transferRisk.status}">${this._escape(transferRisk.label)}</span>` : ""}</div>
       <div class="journey-top">
         <div class="times">
           ${this._renderTime(depPlanned, depReal, "Ab")}
           <span class="time-divider">–</span>
           ${this._renderTime(arrPlanned, arrReal, "An")}
         </div>
-        <div class="meta">${[duration, transferText].filter(Boolean).map((value) => `<span>${this._escape(value)}</span>`).join("")}</div>
+        <div class="meta">${countdown ? `<span class="countdown ${countdown.status}">${this._escape(countdown.label)}</span>` : ""}${[duration, transferText].filter(Boolean).map((value) => `<span>${this._escape(value)}</span>`).join("")}</div>
       </div>
       ${this._renderSegments(attr)}
       ${this._config.show_route === false ? "" : `<div class="route">
-        <div><span class="dot start"></span><span>${this._escape(departure)}</span>${this._config.show_platforms !== false && departurePlatform ? `<small>Gl. ${this._escape(departurePlatform)}</small>` : ""}</div>
-        <div><span class="dot end"></span><span>${this._escape(arrival)}</span>${this._config.show_platforms !== false && arrivalPlatform ? `<small>Gl. ${this._escape(arrivalPlatform)}</small>` : ""}</div>
+        <div><span class="dot start"></span><span>${this._escape(departure)}</span>${this._config.show_platforms !== false ? this._renderPlatform(first, "departure", true) : ""}</div>
+        <div><span class="dot end"></span><span>${this._escape(arrival)}</span>${this._config.show_platforms !== false ? this._renderPlatform(last, "arrival", true) : ""}</div>
       </div>`}
-      ${problems ? `<div class="problem"><ha-icon icon="mdi:alert-circle-outline"></ha-icon><span>${this._escape(problems)}</span></div>` : ""}
+      ${problem ? `<div class="problem ${problem.kind}"><ha-icon icon="mdi:alert-circle-outline"></ha-icon><strong>${this._escape(problem.label)}</strong></div>` : ""}
       <div class="expand-label"><span>${isExpanded ? "Details schließen" : "Fahrt anzeigen"}</span><ha-icon icon="mdi:chevron-down"></ha-icon></div>
       </div>
       <div class="journey-detail-collapse"><div class="journey-detail">${this._renderJourneyDetails(state)}</div></div>
@@ -672,6 +789,14 @@ class DBNavigatorCard extends HTMLElement {
       .journey { background:var(--db-panel); border-radius:12px; padding:13px 14px; border-left:4px solid var(--db-red); box-shadow:0 2px 7px rgba(20,24,30,.07); cursor:pointer; outline:none; transition:transform .14s ease, box-shadow .14s ease; }
       .journey:hover, .journey:focus-visible { transform:translateY(-1px); box-shadow:0 5px 14px rgba(20,24,30,.12); }
       .journey:focus-visible { box-shadow:0 0 0 2px var(--db-red), 0 5px 14px rgba(20,24,30,.12); }
+      .journey.has-problem { border-left-color:#e07900; }
+      .journey.cancelled { border-left-color:#c90018; background:color-mix(in srgb, var(--db-panel) 92%, #ec0016); }
+      .journey-badges { display:flex; flex-wrap:wrap; gap:4px; margin:0 0 7px; }
+      .journey-badges:empty { display:none; }
+      .journey-badges > span { padding:3px 6px; border-radius:999px; background:#e3f2e8; color:#087832; font-size:8px; font-weight:850; }
+      .journey-badges .transfer-risk.relaxed { background:#e3f2e8; color:#087832; }
+      .journey-badges .transfer-risk.tight { background:#fff0d6; color:#8a5300; }
+      .journey-badges .transfer-risk.critical, .journey-badges .transfer-risk.missed { background:#fde1e4; color:#c90018; }
       .journey-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
       .times { display:flex; align-items:flex-end; gap:7px; min-width:0; }
       .time { display:grid; grid-template-columns:auto auto; align-items:baseline; column-gap:4px; line-height:1; }
@@ -684,10 +809,15 @@ class DBNavigatorCard extends HTMLElement {
       .time-divider { padding-bottom:2px; color:#9ba0a8; font-weight:500; }
       .meta { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:4px; color:#6d747e; font-size:11px; font-weight:650; }
       .meta span + span::before { content:"•"; margin-right:4px; color:#b0b4bb; }
+      .meta .countdown { padding:3px 6px; border-radius:999px; background:var(--db-surface); color:var(--db-text); font-size:9px; font-weight:850; }
+      .meta .countdown.soon, .meta .countdown.now { background:#fde1e4; color:#c90018; }
+      .meta .countdown.departed { color:var(--db-muted); }
       .segments { display:flex; align-items:stretch; gap:3px; margin:10px 0 9px; min-height:28px; }
       .segment { display:flex; align-items:center; justify-content:center; min-width:42px; flex:1 1 0; overflow:hidden; padding:6px 7px; border-radius:5px; background:#282d37; color:#fff; font-size:11px; font-weight:850; letter-spacing:.15px; text-overflow:ellipsis; white-space:nowrap; }
       .segment.transfer { flex:0 0 auto; min-width:28px; background:#e7e9ec; color:#59616c; }
-      .segment.transfer.tight { background:#fde1e4; color:#c90018; }
+      .segment.transfer.relaxed { background:#e3f2e8; color:#087832; }
+      .segment.transfer.tight { background:#fff0d6; color:#8a5300; }
+      .segment.transfer.critical, .segment.transfer.missed { background:#fde1e4; color:#c90018; }
       .segment.suburban { background:#178447; }
       .segment.urban { background:#005ca9; }
       .segment.bus { background:#7b2d75; }
@@ -696,6 +826,8 @@ class DBNavigatorCard extends HTMLElement {
       .segment.regional { background:#5c626b; }
       .segment.longdistance { background:#ec0016; }
       .segment.replacement { background:#8a3ffc; }
+      .segment.affected { position:relative; padding-right:20px; outline:2px solid #f4a100; outline-offset:-2px; }
+      .segment.affected::after { content:"!"; position:absolute; right:5px; display:grid; place-items:center; width:13px; height:13px; border-radius:50%; background:#fff; color:#c90018; font-size:9px; font-weight:950; }
       .route { position:relative; display:grid; gap:5px; color:var(--db-muted); font-size:11px; }
       .route::before { content:""; position:absolute; left:4px; top:6px; bottom:6px; width:1px; background:#b8bdc4; }
       .route > div { position:relative; display:grid; grid-template-columns:10px minmax(0,1fr) auto; align-items:center; gap:7px; min-width:0; }
@@ -703,7 +835,12 @@ class DBNavigatorCard extends HTMLElement {
       .dot { z-index:1; width:9px; height:9px; border:2px solid #727983; border-radius:50%; background:var(--db-panel); }
       .dot.end { background:#727983; }
       .route small { color:#7d848d; font-size:10px; font-weight:700; }
+      .platform-change { display:flex; align-items:center; gap:4px; }
+      .platform-change s { color:var(--db-muted); font-weight:500; }
+      .platform-change strong { color:#c90018; }
       .problem { display:flex; align-items:flex-start; gap:5px; margin-top:9px; padding:7px 8px; border-radius:7px; background:#fff0d6; color:#7a4c00; font-size:10px; line-height:1.3; }
+      .problem.cancelled, .problem.cancelled-stop, .detail-problem.cancelled, .detail-problem.cancelled-stop { background:#fde1e4; color:#a90015; }
+      .problem.connection, .detail-problem.connection { background:#fff0d6; color:#7a4c00; }
       .problem ha-icon { --mdc-icon-size:15px; flex:0 0 auto; }
       .expand-label { display:flex; align-items:center; justify-content:flex-end; gap:2px; margin-top:8px; color:var(--db-muted); font-size:9px; font-weight:750; }
       .expand-label ha-icon { --mdc-icon-size:17px; transition:transform .22s ease; }
@@ -740,6 +877,20 @@ class DBNavigatorCard extends HTMLElement {
       .walk-detail::before { content:""; position:absolute; left:2px; top:-7px; bottom:-7px; width:6px; background:var(--db-panel); }
       .walk-detail::after { content:""; position:absolute; left:4px; top:-7px; bottom:-7px; border-left:2px dashed #8b929b; }
       .walk-detail .segment { position:relative; z-index:1; min-height:24px; flex:0 0 auto; }
+      .walk-detail.relaxed { color:#087832; } .walk-detail.tight { color:#8a5300; } .walk-detail.critical, .walk-detail.missed { color:#c90018; font-weight:750; }
+      ha-card.density-compact .content { padding:9px; }
+      ha-card.density-compact .header { padding-bottom:8px; }
+      ha-card.density-compact .routes, ha-card.density-compact .list { gap:5px; }
+      ha-card.density-compact .route-header { padding:8px 10px; }
+      ha-card.density-compact .journey { padding:8px 9px; border-radius:9px; }
+      ha-card.density-compact .journey-badges { margin-bottom:5px; }
+      ha-card.density-compact .segments { min-height:22px; margin:6px 0; }
+      ha-card.density-compact .segment { padding:4px 5px; font-size:9px; }
+      ha-card.density-compact .route { gap:2px; font-size:10px; }
+      ha-card.density-compact .problem { margin-top:6px; padding:5px 6px; }
+      ha-card.density-compact .expand-label { margin-top:4px; }
+      ha-card.density-compact .expand-label span { display:none; }
+      ha-card.density-compact .journey-detail-inner { margin-top:7px; padding-top:9px; }
       .detail-empty { padding:8px; color:var(--db-muted); font-size:10px; }
       .empty { padding:22px 14px; border-radius:12px; background:var(--db-panel); color:var(--db-muted); text-align:center; font-size:12px; line-height:1.45; }
       .empty ha-icon { display:block; margin:0 auto 8px; --mdc-icon-size:30px; color:#a2a7ae; }
@@ -804,7 +955,8 @@ class DBNavigatorCard extends HTMLElement {
 
     const body = `<div class="routes">${routeData.map((item, index) => this._renderRouteSection(item, index)).join("")}</div>`;
     const appearance = ["light", "dark"].includes(this._config.appearance) ? this._config.appearance : "auto";
-    this.shadowRoot.innerHTML = `<style>${this._styles()}</style><ha-card class="theme-${appearance}"><div class="db-stripe"></div><div class="content">${header}${body}</div></ha-card>`;
+    const density = this._config.density === "compact" ? "compact" : "comfortable";
+    this.shadowRoot.innerHTML = `<style>${this._styles()}</style><ha-card class="theme-${appearance} density-${density}"><div class="db-stripe"></div><div class="content">${header}${body}</div></ha-card>`;
 
     this.shadowRoot.querySelectorAll("[data-toggle-route]").forEach((element) => {
       element.addEventListener("click", () => {
@@ -898,6 +1050,7 @@ class DBNavigatorCardEditor extends HTMLElement {
     </style><div class="grid">
       ${this._field("title", "Titel", "Meine Reisen")}
       <label><span>Darstellung</span><select data-field="appearance"><option value="auto" ${!this._config.appearance || this._config.appearance === "auto" ? "selected" : ""}>Home-Assistant-Theme</option><option value="light" ${this._config.appearance === "light" ? "selected" : ""}>Hell</option><option value="dark" ${this._config.appearance === "dark" ? "selected" : ""}>Dunkel</option></select></label>
+      <label><span>Kartendichte</span><select data-field="density"><option value="comfortable" ${!this._config.density || this._config.density === "comfortable" ? "selected" : ""}>Komfortabel</option><option value="compact" ${this._config.density === "compact" ? "selected" : ""}>Kompakt</option></select></label>
       ${this._field("max_connections", "Verbindungen je Strecke", "5")}
       <label class="wide"><span>Strecken (JSON-Liste)</span><textarea data-field="routes-json" placeholder='[{"title":"Zuhause → Arbeit","entity_prefix":"sensor.zuhause_arbeit_verbindung_"}]'>${JSON.stringify(this._config.routes || [], null, 2).replaceAll("&", "&amp;").replaceAll("<", "&lt;")}</textarea></label>
       <label class="wide"><span>Einzelnes Entity-Präfix (Legacy-Konfiguration)</span><input data-field="entity_prefix" value="${String(this._config.entity_prefix || "").replaceAll("&", "&amp;").replaceAll('"', "&quot;")}" placeholder="sensor.bahnhof_arbeit_verbindung_"></label>

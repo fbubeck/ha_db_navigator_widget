@@ -107,7 +107,56 @@ test("shows departure and products in a collapsed route preview", () => {
 test("renders the selectable light appearance", () => {
   const card = makeCard({ appearance: "light", entity_prefix: "sensor.route_" });
   card.hass = { states: {} };
-  assert.match(card.shadowRoot.innerHTML, /<ha-card class="theme-light">/);
+  assert.match(card.shadowRoot.innerHTML, /<ha-card class="theme-light density-comfortable">/);
+});
+
+test("supports a selectable compact density", () => {
+  const card = makeCard({ density: "compact", entity_prefix: "sensor.route_" });
+  card.hass = { states: {} };
+  assert.match(card.shadowRoot.innerHTML, /density-compact/);
+});
+
+test("calculates live departure countdown states", () => {
+  const card = makeCard();
+  const now = new Date("2026-09-01T17:00:00+0200").getTime();
+  assert.deepEqual(card._countdownInfo("2026-09-01T17:04:00+0200", now), { minutes: 4, status: "soon", label: "in 4 Min." });
+  assert.deepEqual(card._countdownInfo("2026-09-01T16:58:00+0200", now), { minutes: -2, status: "departed", label: "vor 2 Min." });
+});
+
+test("classifies transfer risk from realtime arrival and departure", () => {
+  const card = makeCard();
+  const previous = { "Arrival Time": "2026-09-01T17:10:00+0200", "Arrival Time Real": "2026-09-01T17:14:00+0200" };
+  const next = { "Departure Time": "2026-09-01T17:16:00+0200" };
+  assert.deepEqual(card._transferInfo(previous, next), { minutes: 2, status: "critical", label: "Umstieg gefährdet" });
+});
+
+test("highlights platform changes when realtime platform data exists", () => {
+  const card = makeCard();
+  const html = card._renderPlatform({ "Departure Platform Planned": "2", "Departure Platform Real": "4" }, "departure");
+  assert.match(html, /<s>Gleis 2<\/s><strong>Gleis 4<\/strong>/);
+});
+
+test("translates DB Info problem enums and marks the affected connection strip", () => {
+  const card = makeCard();
+  assert.deepEqual(card._problemInfo("TrainProblem.CANCELED"), { kind: "cancelled", label: "Verbindung fällt aus" });
+  assert.deepEqual(card._problemInfo("TrainProblem.CHANGE_NOT_ACCESSIBLE"), { kind: "connection", label: "Anschluss gefährdet" });
+  const html = card._renderSegments({
+    Problems: "TrainProblem.CANCELED",
+    Details: [{ Name: "S6", Departure: "A", Arrival: "B" }, { Name: "U6", Departure: "B", Arrival: "C" }],
+  });
+  assert.equal((html.match(/ affected/g) || []).length, 1);
+  assert.match(html, /Verbindung fällt aus/);
+});
+
+test("ranks fastest, earliest and lowest-transfer journeys", () => {
+  const card = makeCard();
+  const states = [
+    { entity_id: "sensor.fast", attributes: { "Departure Time": "2026-09-01T17:00:00+0200", "Arrival Time": "2026-09-01T17:30:00+0200", Transfers: 0 } },
+    { entity_id: "sensor.slow", attributes: { "Departure Time": "2026-09-01T16:50:00+0200", "Arrival Time": "2026-09-01T17:40:00+0200", Transfers: 1 } },
+  ];
+  const rankings = card._journeyRankings(states);
+  assert.deepEqual(rankings["sensor.fast"], ["Früheste Ankunft", "Schnellste", "Direkt"]);
+  assert.deepEqual(rankings["sensor.slow"], []);
 });
 
 test("renders a continuous timeline with a connected dashed walking section", () => {

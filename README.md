@@ -9,7 +9,11 @@ Eine eigenständige Lovelace-Karte im Stil der mobilen DB-Navigator-App. Die Int
 - native Custom Card, **keine Abhängigkeit von `custom:button-card`**
 - geplante und reale Abfahrts-/Ankunftszeit inklusive Verspätung
 - Produktfarben für ICE/IC, RE/RB, S-Bahn, Stadtbahn, Bus, MEX, Tram und einheitlich normalisiertes SEV
-- Umstiegszeit aus den einzelnen Fahrtabschnitten; knappe Umstiege bis 2 Minuten werden rot hervorgehoben
+- Live-Countdown bis zur Abfahrt, automatisch alle 30 Sekunden aktualisiert
+- Umstiegsrisiko aus Echtzeiten: entspannt, knapp, gefährdet oder verpasst
+- Gleisänderungen werden bei vorhandenen Soll-/Echtgleisen hervorgehoben
+- Ausfälle, entfallene Halte, gefährdete Anschlüsse und starke Verspätungen als verständliche Statusmeldung
+- automatische Markierung für schnellste Fahrt, früheste Ankunft und wenigste Umstiege/Direktverbindung
 - Start, Ziel, Gleise, Dauer, Umstiege und Störungsmeldungen
 - mehrere Strecken in einer Karte, jeweils unabhängig ein- und ausklappbar
 - eingeklappte Strecken zeigen rechts die nächste Abfahrt und die zugehörigen Verkehrsmittel
@@ -17,8 +21,8 @@ Eine eigenständige Lovelace-Karte im Stil der mobilen DB-Navigator-App. Die Int
 - wählbare Darstellung: Home-Assistant-Theme, explizit **Hell** oder **Dunkel**
 - Navigator-Navigation mit **Früher**, **Jetzt**, **Später** und frei wählbarer Abfahrtszeit
 - direkte Nutzung der `datetime`-, `switch`- und `button`-Entities von [EiS94/db_info](https://github.com/EiS94/db_info)
-- responsive Darstellung und Dark Mode
-- Klick auf eine Verbindung öffnet den Home-Assistant-Mehr-Info-Dialog
+- responsive Darstellung, Dark Mode und wählbare kompakte Kartendichte
+- Info-Button im Reiseverlauf öffnet den Home-Assistant-Mehr-Info-Dialog
 - feste Entity-Liste, nummeriertes Präfix oder automatische Erkennung
 - optionaler Richtungswechsel über eine `person`-Entity
 - visueller Karteneditor inklusive JSON-Konfiguration mehrerer Strecken
@@ -51,6 +55,7 @@ Jeder Eintrag unter `routes` entspricht einem DB-Info-Konfigurationseintrag. Das
 type: custom:db-navigator-card
 title: Meine Reisen
 appearance: light  # auto, light oder dark
+density: compact   # comfortable oder compact
 max_connections: 5
 routes:
   - title: Bahnhof → Arbeit
@@ -118,6 +123,7 @@ Für getrennt ein- und ausklappbare Richtungen sollten stattdessen zwei `routes`
 |---|---:|---|
 | `title` | `Meine Reisen` | Überschrift der Karte |
 | `appearance` | `auto` | `auto` folgt dem HA-Theme; `light` erzwingt den hellen und `dark` den dunklen Navigator-Look |
+| `density` | `comfortable` | `compact` reduziert Abstände und Größen für kleine Smartphone-Dashboards |
 | `routes` | – | Liste von Streckenobjekten; unterstützt `title`, `entity_prefix`, `entities`, `open` und die drei Control-Entities |
 | `entities` | – | Legacy: Liste der Verbindungssensoren einer einzelnen Strecke |
 | `entity_prefix` | – | Legacy: Präfix der Sensoren einer einzelnen Strecke |
@@ -145,7 +151,7 @@ Die Karte akzeptiert die Attribute aus dem gezeigten DB-Info-Sensor direkt:
 - `Duration`, `Transfers`, `Problems`, `Name`
 - `Details` als echte Liste, JSON-String oder Python-ähnlicher String
 
-Ein `Details`-Element kann zusätzlich `Departure Platform`, `Arrival Platform` und die jeweiligen geplanten/reellen Zeiten enthalten. `null` bei einer Realzeit wird als pünktlich bzw. noch ohne Echtzeitwert behandelt. Snake-Case-Varianten wie `departure_time` werden ebenfalls erkannt.
+Ein `Details`-Element kann zusätzlich `Departure Platform`, `Arrival Platform` und die jeweiligen geplanten/reellen Zeiten enthalten. Für Gleisänderungen werden, sofern eine Datenquelle sie bereitstellt, auch `Departure Platform Planned`/`Departure Platform Real` sowie `Arrival Platform Planned`/`Arrival Platform Real` unterstützt. Die aktuelle Version von DB Info liefert üblicherweise nur ein Gleis; dann wird dieses normal dargestellt. `null` bei einer Realzeit wird als pünktlich bzw. noch ohne Echtzeitwert behandelt. Snake-Case-Varianten wie `departure_time` werden ebenfalls erkannt.
 
 ## Entwicklung und Tests
 
