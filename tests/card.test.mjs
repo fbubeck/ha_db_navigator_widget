@@ -84,6 +84,26 @@ test("recognizes and resolves numbered DB Info sensors", () => {
   assert.deepEqual(card._resolveRouteStates(route).map((state) => state.entity_id), ["sensor.route_1", "sensor.route_2"]);
 });
 
+test("normalizes every replacement-service label to one SEV badge", () => {
+  const card = makeCard();
+  assert.deepEqual(card._transport("SEV SEV"), { kind: "replacement", label: "SEV" });
+  assert.deepEqual(card._transport("Bus Schienenersatzverkehr SEV"), { kind: "replacement", label: "SEV" });
+});
+
+test("shows departure and products in a collapsed route preview", () => {
+  const card = makeCard();
+  const html = card._renderRoutePreview({
+    attributes: {
+      Name: "Bus X2 -> Fußweg -> S6",
+      Details: [{ Name: "Bus X2" }, { Name: "Fußweg" }, { Name: "S6" }],
+    },
+  }, "2026-09-01T17:32:00+0200");
+  assert.match(html, /Abfahrt/);
+  assert.match(html, />Bus X2</);
+  assert.match(html, />S6</);
+  assert.equal((html.match(/SEV/g) || []).length, 0);
+});
+
 test("renders the selectable light appearance", () => {
   const card = makeCard({ appearance: "light", entity_prefix: "sensor.route_" });
   card.hass = { states: {} };

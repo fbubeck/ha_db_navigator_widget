@@ -1,4 +1,4 @@
-const DB_NAVIGATOR_CARD_VERSION = "0.3.0";
+const DB_NAVIGATOR_CARD_VERSION = "0.3.1";
 
 class DBNavigatorCard extends HTMLElement {
   constructor() {
@@ -221,6 +221,9 @@ class DBNavigatorCard extends HTMLElement {
     let kind = "train";
 
     if (lower === "fußweg" || lower === "fussweg" || lower.includes("walk")) return { kind: "walk", label: "Fußweg" };
+    if (lower.includes("sev") || lower.includes("ersatzverkehr")) {
+      return { kind: "replacement", label: "SEV" };
+    }
     if (lower.includes("metropolexpress") || /(^|\s)mex\s*\d*/i.test(original)) {
       label = original.replace(/metropolexpress\s*/i, "MEX ").replace(/^MEX\s+MEX/i, "MEX").trim();
       kind = "mex";
@@ -235,8 +238,6 @@ class DBNavigatorCard extends HTMLElement {
       kind = "bus";
     } else if (lower.includes("tram") || lower.includes("straßenbahn")) {
       kind = "tram";
-    } else if (lower.includes("sev") || lower.includes("ersatzverkehr")) {
-      kind = "replacement";
     } else if (/^(ice|ic|ec|re|rb|ire)\b/i.test(original)) {
       kind = /^(re|rb|ire)\b/i.test(original) ? "regional" : "longdistance";
     }
@@ -457,6 +458,30 @@ class DBNavigatorCard extends HTMLElement {
     </div>`;
   }
 
+  _renderRoutePreview(state, departureTime) {
+    if (!state) return "";
+    const attr = state.attributes || {};
+    let steps = this._parseDetails(this._attr(attr, "Details", "details"));
+    if (!steps.length) {
+      steps = String(this._attr(attr, "Name", "name") || "")
+        .split(/\s*->\s*/)
+        .filter(Boolean)
+        .map((Name) => ({ Name }));
+    }
+    const products = [];
+    for (const step of steps) {
+      const product = this._transport(this._attr(step, "Name", "name"));
+      if (product.kind === "walk") continue;
+      const token = `${product.kind}:${product.label}`;
+      if (!products.some((item) => item.token === token)) products.push({ ...product, token });
+    }
+    const visible = products.slice(0, 2);
+    return `<span class="route-next">
+      <span class="route-next-time"><small>Abfahrt</small><strong>${this._escape(this._formatTime(departureTime))}</strong></span>
+      <span class="route-next-products">${visible.map((product) => `<b class="mini-product ${product.kind}">${this._escape(product.label)}</b>`).join("")}${products.length > 2 ? `<em>+${products.length - 2}</em>` : ""}</span>
+    </span>`;
+  }
+
   _renderRouteSection(routeData, index) {
     const { key, route, states } = routeData;
     const first = states[0];
@@ -464,6 +489,7 @@ class DBNavigatorCard extends HTMLElement {
     const arrival = this._attr(first?.attributes, "Arrival", "arrival_station", "destination") || "Ziel";
     const title = route.title || `${departure} → ${arrival}`;
     const firstDeparture = this._attr(first?.attributes, "Departure Time Real", "Departure Time", "departure_time_real", "departure_time");
+    const preview = this._renderRoutePreview(first, firstDeparture);
     const isOpen = this._expandedRoutes[key] ?? route.open ?? index === 0;
     const journeys = states.length
       ? `<div class="list">${states.map((state) => this._renderJourney(state)).join("")}</div>`
@@ -472,7 +498,8 @@ class DBNavigatorCard extends HTMLElement {
     return `<section class="route-section ${isOpen ? "open" : ""}">
       <button class="route-header" data-toggle-route="${this._escape(key)}" aria-expanded="${isOpen}">
         <span class="route-symbol"><ha-icon icon="mdi:train"></ha-icon></span>
-        <span class="route-heading"><strong>${this._escape(title)}</strong><small>${states.length} ${states.length === 1 ? "Verbindung" : "Verbindungen"}${firstDeparture ? ` · nächste ${this._escape(this._formatTime(firstDeparture))}` : ""}</small></span>
+        <span class="route-heading"><strong>${this._escape(title)}</strong><small>${states.length} ${states.length === 1 ? "Verbindung" : "Verbindungen"}</small></span>
+        ${preview}
         <ha-icon class="route-chevron" icon="mdi:chevron-down"></ha-icon>
       </button>
       <div class="route-collapse"><div class="route-content">${journeys}${this._renderRouteControls(routeData)}</div></div>
@@ -613,13 +640,22 @@ class DBNavigatorCard extends HTMLElement {
       .count { flex:0 0 auto; padding:4px 8px; border-radius:999px; background:var(--db-panel); color:var(--db-muted); font-size:10px; font-weight:800; box-shadow:0 1px 4px rgba(0,0,0,.06); }
       .routes { display:flex; flex-direction:column; gap:10px; }
       .route-section { overflow:hidden; border-radius:13px; background:var(--db-panel); box-shadow:0 2px 8px rgba(20,24,30,.08); }
-      .route-header { display:grid; grid-template-columns:34px minmax(0,1fr) 24px; align-items:center; gap:10px; width:100%; padding:12px 13px; border:0; background:transparent; color:var(--db-text); text-align:left; cursor:pointer; }
+      .route-header { display:grid; grid-template-columns:34px minmax(0,1fr) auto 24px; align-items:center; gap:10px; width:100%; padding:12px 13px; border:0; background:transparent; color:var(--db-text); text-align:left; cursor:pointer; }
       .route-header:hover { background:color-mix(in srgb, var(--primary-text-color, #282d37) 4%, transparent); }
       .route-symbol { display:grid; place-items:center; width:32px; height:32px; border-radius:50%; background:#ec0016; color:#fff; }
       .route-symbol ha-icon { --mdc-icon-size:19px; }
       .route-heading { display:flex; flex-direction:column; min-width:0; gap:3px; }
       .route-heading strong { overflow:hidden; font-size:14px; text-overflow:ellipsis; white-space:nowrap; }
       .route-heading small { color:var(--db-muted); font-size:10px; }
+      .route-next { display:flex; align-items:center; justify-content:flex-end; gap:9px; min-width:0; }
+      .route-section.open .route-next { display:none; }
+      .route-next-time { display:flex; flex-direction:column; align-items:flex-end; line-height:1; }
+      .route-next-time small { margin-bottom:3px; color:var(--db-muted); font-size:8px; font-weight:750; text-transform:uppercase; }
+      .route-next-time strong { color:var(--db-text); font-size:16px; font-variant-numeric:tabular-nums; }
+      .route-next-products { display:flex; align-items:center; justify-content:flex-end; gap:3px; max-width:128px; overflow:hidden; }
+      .mini-product { display:block; max-width:72px; overflow:hidden; padding:4px 6px; border-radius:4px; background:#282d37; color:#fff; font-size:9px; font-weight:850; text-overflow:ellipsis; white-space:nowrap; }
+      .mini-product.suburban { background:#178447; } .mini-product.urban { background:#005ca9; } .mini-product.bus { background:#7b2d75; } .mini-product.tram { background:#c86200; } .mini-product.mex { background:#f5c400; color:#20242a; } .mini-product.regional { background:#5c626b; } .mini-product.longdistance { background:#ec0016; } .mini-product.replacement { background:#8a3ffc; }
+      .route-next-products em { color:var(--db-muted); font-size:8px; font-style:normal; font-weight:800; }
       .route-chevron { --mdc-icon-size:22px; color:var(--db-muted); transition:transform .22s ease; }
       .route-section.open .route-chevron { transform:rotate(180deg); }
       .route-collapse { display:grid; grid-template-rows:0fr; transition:grid-template-rows .25s ease; }
@@ -726,6 +762,13 @@ class DBNavigatorCard extends HTMLElement {
         .journey { padding:12px 11px; }
         .header { padding-bottom:10px; }
         .headline { font-size:14px; }
+        .route-header { grid-template-columns:30px minmax(64px,1fr) auto 20px; gap:6px; padding:10px 8px; }
+        .route-symbol { width:28px; height:28px; }
+        .route-next { gap:6px; }
+        .route-next-time strong { font-size:14px; }
+        .route-next-products { max-width:62px; }
+        .route-next-products .mini-product:nth-of-type(n+2) { display:none; }
+        .mini-product { max-width:58px; padding:4px 5px; }
         .time strong { font-size:16px; }
         .meta { font-size:10px; }
         .segment { min-width:30px; padding:6px 4px; font-size:10px; }

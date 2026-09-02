@@ -8,10 +8,11 @@ Eine eigenständige Lovelace-Karte im Stil der mobilen DB-Navigator-App. Die Int
 
 - native Custom Card, **keine Abhängigkeit von `custom:button-card`**
 - geplante und reale Abfahrts-/Ankunftszeit inklusive Verspätung
-- Produktfarben für ICE/IC, RE/RB, S-Bahn, Stadtbahn, Bus, MEX, Tram und SEV
+- Produktfarben für ICE/IC, RE/RB, S-Bahn, Stadtbahn, Bus, MEX, Tram und einheitlich normalisiertes SEV
 - Umstiegszeit aus den einzelnen Fahrtabschnitten; knappe Umstiege bis 2 Minuten werden rot hervorgehoben
 - Start, Ziel, Gleise, Dauer, Umstiege und Störungsmeldungen
 - mehrere Strecken in einer Karte, jeweils unabhängig ein- und ausklappbar
+- eingeklappte Strecken zeigen rechts die nächste Abfahrt und die zugehörigen Verkehrsmittel
 - jede Verbindung per Klick aufklappbar mit vollständigem Reiseverlauf, Haltestellen, Soll-/Echtzeiten, Gleisen, Verkehrsmitteln, Meldungen und Datenquelle
 - wählbare Darstellung: Home-Assistant-Theme, explizit **Hell** oder **Dunkel**
 - Navigator-Navigation mit **Früher**, **Jetzt**, **Später** und frei wählbarer Abfahrtszeit
