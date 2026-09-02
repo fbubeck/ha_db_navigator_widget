@@ -84,6 +84,39 @@ test("recognizes and resolves numbered DB Info sensors", () => {
   assert.deepEqual(card._resolveRouteStates(route).map((state) => state.entity_id), ["sensor.route_1", "sensor.route_2"]);
 });
 
+test("renders the selectable light appearance", () => {
+  const card = makeCard({ appearance: "light", entity_prefix: "sensor.route_" });
+  card.hass = { states: {} };
+  assert.match(card.shadowRoot.innerHTML, /<ha-card class="theme-light">/);
+});
+
+test("renders all segment stops, platforms and source in expanded details", () => {
+  const card = makeCard();
+  const state = {
+    entity_id: "sensor.route_1",
+    attributes: {
+      Duration: "34min",
+      Transfers: 1,
+      Name: "S60 -> Fußweg -> Stadtbahn U6",
+      Source: "bahnland-bayern.de",
+      Details: [{
+        Name: "S60",
+        Departure: "Leonberg",
+        "Departure Time": "2026-09-01T17:32:00+0200",
+        "Departure Platform": "1",
+        Arrival: "Feuerbach",
+        "Arrival Time": "2026-09-01T17:51:00+0200",
+        "Arrival Platform": "1a",
+      }],
+    },
+  };
+  const html = card._renderJourneyDetails(state);
+  assert.match(html, /Leonberg/);
+  assert.match(html, /Feuerbach/);
+  assert.match(html, /Gleis 1a/);
+  assert.match(html, /bahnland-bayern\.de/);
+});
+
 test("supports multiple independently collapsible route definitions", () => {
   const card = makeCard({
     routes: [

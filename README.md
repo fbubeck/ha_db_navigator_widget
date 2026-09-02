@@ -12,6 +12,8 @@ Eine eigenständige Lovelace-Karte im Stil der mobilen DB-Navigator-App. Die Int
 - Umstiegszeit aus den einzelnen Fahrtabschnitten; knappe Umstiege bis 2 Minuten werden rot hervorgehoben
 - Start, Ziel, Gleise, Dauer, Umstiege und Störungsmeldungen
 - mehrere Strecken in einer Karte, jeweils unabhängig ein- und ausklappbar
+- jede Verbindung per Klick aufklappbar mit vollständigem Reiseverlauf, Haltestellen, Soll-/Echtzeiten, Gleisen, Verkehrsmitteln, Meldungen und Datenquelle
+- wählbare Darstellung: Home-Assistant-Theme, explizit **Hell** oder **Dunkel**
 - Navigator-Navigation mit **Früher**, **Jetzt**, **Später** und frei wählbarer Abfahrtszeit
 - direkte Nutzung der `datetime`-, `switch`- und `button`-Entities von [EiS94/db_info](https://github.com/EiS94/db_info)
 - responsive Darstellung und Dark Mode
@@ -47,6 +49,7 @@ Jeder Eintrag unter `routes` entspricht einem DB-Info-Konfigurationseintrag. Das
 ```yaml
 type: custom:db-navigator-card
 title: Meine Reisen
+appearance: light  # auto, light oder dark
 max_connections: 5
 routes:
   - title: Bahnhof → Arbeit
@@ -62,7 +65,7 @@ routes:
       - sensor.zuhause_hauptbahnhof_verbindung_3
 ```
 
-Ein Klick auf den Streckenkopf klappt die jeweilige Strecke auf oder zu. `entities` hat innerhalb einer Strecke Vorrang vor `entity_prefix`.
+Ein Klick auf den Streckenkopf klappt die jeweilige Strecke auf oder zu. Ein Klick auf eine einzelne Verbindung öffnet direkt darunter den vollständigen Reiseverlauf. Der Info-Button im geöffneten Verlauf öffnet zusätzlich den Home-Assistant-Mehr-Info-Dialog. `entities` hat innerhalb einer Strecke Vorrang vor `entity_prefix`.
 
 ### Früher, Jetzt, Später und eigene Uhrzeit
 
@@ -112,7 +115,8 @@ Für getrennt ein- und ausklappbare Richtungen sollten stattdessen zwei `routes`
 
 | Option | Standard | Beschreibung |
 |---|---:|---|
-| `title` | `Reiseauskunft` | Überschrift der Karte |
+| `title` | `Meine Reisen` | Überschrift der Karte |
+| `appearance` | `auto` | `auto` folgt dem HA-Theme; `light` erzwingt den hellen und `dark` den dunklen Navigator-Look |
 | `routes` | – | Liste von Streckenobjekten; unterstützt `title`, `entity_prefix`, `entities`, `open` und die drei Control-Entities |
 | `entities` | – | Legacy: Liste der Verbindungssensoren einer einzelnen Strecke |
 | `entity_prefix` | – | Legacy: Präfix der Sensoren einer einzelnen Strecke |
