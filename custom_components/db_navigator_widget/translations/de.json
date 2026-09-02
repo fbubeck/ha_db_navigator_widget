@@ -1,0 +1,14 @@
+{
+  "title": "DB Navigator Widgets",
+  "config": {
+    "step": {
+      "user": {
+        "title": "DB Navigator Widgets installieren",
+        "description": "Diese Integration stellt die Lovelace-Karte bereit. Sie ruft selbst keine Fahrtdaten ab und verwendet vorhandene Sensoren deiner DB-Info-Integration. Nach der Einrichtung muss die JavaScript-Ressource einmalig im Dashboard registriert werden."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "DB Navigator Widgets ist bereits eingerichtet."
+    }
+  }
+}

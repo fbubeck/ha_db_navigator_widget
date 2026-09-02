@@ -1,0 +1,8 @@
+{
+  "name": "DB Navigator Widgets",
+  "description": "DB-Navigator-inspirierte Lovelace-Karte für vorhandene DB-Info-Sensoren",
+  "render_readme": true,
+  "documentation": "https://github.com/fbubeck/ha_db_navigator_widget",
+  "issue_tracker": "https://github.com/fbubeck/ha_db_navigator_widget/issues",
+  "homeassistant": "2024.1.0"
+}

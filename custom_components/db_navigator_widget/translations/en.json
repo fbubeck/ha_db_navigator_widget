@@ -1,0 +1,14 @@
+{
+  "title": "DB Navigator Widgets",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Install DB Navigator Widgets",
+        "description": "This integration provides the Lovelace card only. It does not fetch journey data and uses existing sensors from your DB Info integration. After setup, register the JavaScript resource once in your dashboard."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "DB Navigator Widgets is already configured."
+    }
+  }
+}

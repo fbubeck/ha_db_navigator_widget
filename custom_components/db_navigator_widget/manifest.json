@@ -1,0 +1,12 @@
+{
+  "domain": "db_navigator_widget",
+  "name": "DB Navigator Widgets",
+  "version": "0.2.0",
+  "documentation": "https://github.com/fbubeck/ha_db_navigator_widget",
+  "issue_tracker": "https://github.com/fbubeck/ha_db_navigator_widget/issues",
+  "codeowners": ["@fbubeck"],
+  "dependencies": ["http"],
+  "requirements": [],
+  "config_flow": true,
+  "integration_type": "helper"
+}

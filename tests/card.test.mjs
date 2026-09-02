@@ -1,0 +1,150 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+import vm from "node:vm";
+
+const registry = new Map();
+globalThis.HTMLElement = class {
+  attachShadow() {
+    this.shadowRoot = { innerHTML: "", querySelectorAll: () => [], querySelector: () => null };
+    return this.shadowRoot;
+  }
+  dispatchEvent() {}
+};
+globalThis.customElements = {
+  define: (name, value) => registry.set(name, value),
+  get: (name) => registry.get(name),
+};
+globalThis.window = { customCards: [] };
+globalThis.CustomEvent = class {};
+
+const source = readFileSync(
+  new URL("../custom_components/db_navigator_widget/www/db-navigator-card.js", import.meta.url),
+  "utf8",
+);
+vm.runInThisContext(source);
+const Card = registry.get("db-navigator-card");
+
+function makeCard(config = {}) {
+  const card = new Card();
+  card.setConfig({ max_connections: 5, ...config });
+  return card;
+}
+
+test("parses DB Info details supplied as an array", () => {
+  const card = makeCard();
+  const details = [{ Name: "S6" }, { Name: "Fußweg" }, { Name: "Stadtbahn U6" }];
+  assert.deepEqual(card._parseDetails(details), details);
+});
+
+test("parses Python-style details strings from HA attributes", () => {
+  const card = makeCard();
+  const details = card._parseDetails("[{'Name': 'S6', 'Departure Time Real': None}, {'Name': 'Fußweg'}]");
+  assert.equal(details.length, 2);
+  assert.equal(details[0].Name, "S6");
+  assert.equal(details[0]["Departure Time Real"], null);
+});
+
+test("calculates delay across ISO timestamps with compact offsets", () => {
+  const card = makeCard();
+  assert.equal(
+    card._delayMinutes("2026-09-01T17:32:00+0200", "2026-09-01T17:39:00+0200"),
+    7,
+  );
+});
+
+test("selects the direction prefix from a person state", () => {
+  const card = makeCard({
+    person_entity: "person.ferdinand",
+    home_state: "home",
+    home_prefix: "sensor.outbound_",
+    away_prefix: "sensor.inbound_",
+  });
+  card._hass = { states: { "person.ferdinand": { state: "home" } } };
+  assert.equal(card._activePrefix(), "sensor.outbound_");
+  card._hass.states["person.ferdinand"].state = "work";
+  assert.equal(card._activePrefix(), "sensor.inbound_");
+});
+
+test("recognizes and resolves numbered DB Info sensors", () => {
+  const card = makeCard({ entity_prefix: "sensor.route_", max_connections: 2 });
+  const attributes = {
+    Departure: "Leonberg",
+    Arrival: "Schlossplatz",
+    "Departure Time": "2026-09-01T17:32:00+0200",
+  };
+  card._hass = {
+    states: {
+      "sensor.route_1": { entity_id: "sensor.route_1", state: "Verbindung 1", attributes },
+      "sensor.route_2": { entity_id: "sensor.route_2", state: "Verbindung 2", attributes },
+      "sensor.route_3": { entity_id: "sensor.route_3", state: "Verbindung 3", attributes },
+    },
+  };
+  const route = card._normalizedRoutes()[0];
+  assert.deepEqual(card._resolveRouteStates(route).map((state) => state.entity_id), ["sensor.route_1", "sensor.route_2"]);
+});
+
+test("supports multiple independently collapsible route definitions", () => {
+  const card = makeCard({
+    routes: [
+      { title: "Home → Work", entity_prefix: "sensor.home_work_verbindung_" },
+      { title: "Work → Home", entity_prefix: "sensor.work_home_verbindung_", open: false },
+    ],
+  });
+  assert.equal(card._normalizedRoutes().length, 2);
+  assert.equal(card._routeKey(card._normalizedRoutes()[0]), "sensor.home_work_verbindung_");
+});
+
+test("infers DB Info custom-time controls from a route prefix", () => {
+  const card = makeCard({ entity_prefix: "sensor.home_work_verbindung_" });
+  card._hass = {
+    states: {
+      "datetime.home_work_abfahrtszeit": { state: "2026-09-01T17:00:00+02:00", attributes: {} },
+      "switch.home_work_benutzerdefinierte_zeit_verwenden": { state: "off", attributes: {} },
+      "button.home_work_refresh": { state: "unknown", attributes: {} },
+    },
+  };
+  const controls = card._routeControls(card._normalizedRoutes()[0], []);
+  assert.deepEqual(controls, {
+    datetime: "datetime.home_work_abfahrtszeit",
+    customTime: "switch.home_work_benutzerdefinierte_zeit_verwenden",
+    refresh: "button.home_work_refresh",
+  });
+});
+
+test("uses DB Info datetime and custom-time switch for a time request", async () => {
+  const card = makeCard({
+    entity_prefix: "sensor.home_work_verbindung_",
+    datetime_entity: "datetime.home_work_abfahrtszeit",
+    custom_time_entity: "switch.home_work_benutzerdefinierte_zeit_verwenden",
+  });
+  const calls = [];
+  card._hass = {
+    states: {
+      "datetime.home_work_abfahrtszeit": { state: "2026-09-01T17:00:00+02:00", attributes: {} },
+      "switch.home_work_benutzerdefinierte_zeit_verwenden": { state: "off", attributes: {} },
+    },
+    callService: async (...args) => calls.push(args),
+  };
+  const route = card._normalizedRoutes()[0];
+  await card._setRouteTime({ route, key: card._routeKey(route), states: [] }, new Date(2026, 8, 1, 18, 30, 0));
+  assert.deepEqual(calls.map(([domain, service]) => `${domain}.${service}`), [
+    "datetime.set_value",
+    "switch.turn_on",
+  ]);
+  assert.equal(calls[0][2].entity_id, "datetime.home_work_abfahrtszeit");
+  assert.match(calls[0][2].datetime, /^2026-09-01T18:30:00$/);
+});
+
+test("later navigation starts after the final displayed departure and earlier restores history", () => {
+  const card = makeCard({ entity_prefix: "sensor.route_verbindung_" });
+  card._hass = { states: {} };
+  const route = card._normalizedRoutes()[0];
+  const states = [
+    { attributes: { "Departure Time": "2026-09-01T17:00:00+0200" } },
+    { attributes: { "Departure Time": "2026-09-01T18:00:00+0200" } },
+  ];
+  const routeData = { route, key: card._routeKey(route), states };
+  assert.equal(card._navigationTarget(routeData, "later").getTime(), new Date("2026-09-01T18:01:00+0200").getTime());
+  assert.equal(card._navigationTarget(routeData, "earlier").getTime(), new Date("2026-09-01T17:00:00+0200").getTime());
+});

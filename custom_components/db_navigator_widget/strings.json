@@ -1,0 +1,14 @@
+{
+  "title": "DB Navigator Widgets",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Install DB Navigator Widgets",
+        "description": "This integration provides the Lovelace card only. It uses existing entities from the DB Info integration and does not fetch journey data itself."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "DB Navigator Widgets is already configured."
+    }
+  }
+}
