@@ -1,4 +1,4 @@
-const DB_NAVIGATOR_CARD_VERSION = "0.3.1";
+const DB_NAVIGATOR_CARD_VERSION = "0.3.2";
 
 class DBNavigatorCard extends HTMLElement {
   constructor() {
@@ -732,8 +732,9 @@ class DBNavigatorCard extends HTMLElement {
       .detail-fact b { display:block; overflow:hidden; color:var(--db-text); font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
       .detail-problem { display:flex; gap:6px; margin-bottom:11px; padding:8px; border-radius:7px; background:#fff0d6; color:#7a4c00; font-size:10px; line-height:1.35; }
       .detail-problem ha-icon { flex:0 0 auto; --mdc-icon-size:16px; }
-      .legs { display:flex; flex-direction:column; }
-      .leg { position:relative; padding:0 0 13px; }
+      .legs { position:relative; display:flex; flex-direction:column; }
+      .legs::before { content:""; position:absolute; z-index:0; left:4px; top:29px; bottom:5px; width:2px; background:#8b929b; }
+      .leg { position:relative; z-index:1; padding:0 0 13px; }
       .leg:last-child { padding-bottom:2px; }
       .leg-product { margin:0 0 7px 25px; }
       .product-badge { display:inline-flex; padding:4px 8px; border-radius:4px; background:#282d37; color:#fff; font-size:10px; font-weight:850; }
@@ -751,8 +752,10 @@ class DBNavigatorCard extends HTMLElement {
       .stop-time b { color:#138a42; font-size:11px; }
       .stop-time.late b, .stop-time.late em { color:#d20a1e; }
       .stop-time em { font-size:8px; font-style:normal; font-weight:850; }
-      .walk-detail { display:flex; align-items:center; gap:8px; margin:0 0 13px 24px; color:var(--db-muted); font-size:10px; }
-      .walk-detail .segment { min-height:24px; flex:0 0 auto; }
+      .walk-detail { position:relative; z-index:2; display:flex; align-items:center; gap:8px; min-height:36px; margin:-4px 0 9px; padding-left:24px; color:var(--db-muted); font-size:10px; }
+      .walk-detail::before { content:""; position:absolute; left:2px; top:-7px; bottom:-7px; width:6px; background:var(--db-panel); }
+      .walk-detail::after { content:""; position:absolute; left:4px; top:-7px; bottom:-7px; border-left:2px dashed #8b929b; }
+      .walk-detail .segment { position:relative; z-index:1; min-height:24px; flex:0 0 auto; }
       .detail-empty { padding:8px; color:var(--db-muted); font-size:10px; }
       .empty { padding:22px 14px; border-radius:12px; background:var(--db-panel); color:var(--db-muted); text-align:center; font-size:12px; line-height:1.45; }
       .empty ha-icon { display:block; margin:0 auto 8px; --mdc-icon-size:30px; color:#a2a7ae; }

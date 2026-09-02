@@ -110,6 +110,14 @@ test("renders the selectable light appearance", () => {
   assert.match(card.shadowRoot.innerHTML, /<ha-card class="theme-light">/);
 });
 
+test("renders a continuous timeline with a connected dashed walking section", () => {
+  const card = makeCard();
+  const styles = card._styles();
+  assert.match(styles, /\.legs::before[\s\S]*bottom:5px/);
+  assert.match(styles, /\.walk-detail::after[\s\S]*border-left:2px dashed/);
+  assert.match(styles, /\.walk-detail::after[\s\S]*top:-7px; bottom:-7px/);
+});
+
 test("renders all segment stops, platforms and source in expanded details", () => {
   const card = makeCard();
   const state = {
