@@ -143,6 +143,9 @@ test("renders all segment stops, platforms and source in expanded details", () =
   assert.match(html, /Feuerbach/);
   assert.match(html, /Gleis 1a/);
   assert.match(html, /bahnland-bayern\.de/);
+  assert.equal((html.match(/class="stop-product suburban">S60/g) || []).length, 2);
+  assert.match(html, /class="stop-kind">Ab[\s\S]*S60[\s\S]*Leonberg/);
+  assert.match(html, /class="stop-kind">An[\s\S]*S60[\s\S]*Feuerbach/);
 });
 
 test("supports multiple independently collapsible route definitions", () => {

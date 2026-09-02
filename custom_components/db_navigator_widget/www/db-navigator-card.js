@@ -1,4 +1,4 @@
-const DB_NAVIGATOR_CARD_VERSION = "0.3.2";
+const DB_NAVIGATOR_CARD_VERSION = "0.3.3";
 
 class DBNavigatorCard extends HTMLElement {
   constructor() {
@@ -551,10 +551,10 @@ class DBNavigatorCard extends HTMLElement {
       const arrPlatform = this._attr(step, "Arrival Platform", "arrival_platform");
 
       return `<div class="leg">
-        <div class="leg-product"><span class="product-badge ${transport.kind}">${this._escape(transport.label)}</span></div>
         <div class="stop-row">
           <span class="stop-marker start"></span>
           <span class="stop-kind">Ab</span>
+          <span class="stop-product ${transport.kind}">${this._escape(transport.label)}</span>
           <span class="stop-main"><b>${this._escape(departure)}</b>${depPlatform ? `<small>Gleis ${this._escape(depPlatform)}</small>` : ""}</span>
           ${this._renderStopTime(depPlanned, depReal)}
         </div>
@@ -562,6 +562,7 @@ class DBNavigatorCard extends HTMLElement {
         <div class="stop-row">
           <span class="stop-marker end"></span>
           <span class="stop-kind">An</span>
+          <span class="stop-product ${transport.kind}">${this._escape(transport.label)}</span>
           <span class="stop-main"><b>${this._escape(arrival)}</b>${arrPlatform ? `<small>Gleis ${this._escape(arrPlatform)}</small>` : ""}</span>
           ${this._renderStopTime(arrPlanned, arrReal)}
         </div>
@@ -733,13 +734,12 @@ class DBNavigatorCard extends HTMLElement {
       .detail-problem { display:flex; gap:6px; margin-bottom:11px; padding:8px; border-radius:7px; background:#fff0d6; color:#7a4c00; font-size:10px; line-height:1.35; }
       .detail-problem ha-icon { flex:0 0 auto; --mdc-icon-size:16px; }
       .legs { position:relative; display:flex; flex-direction:column; }
-      .legs::before { content:""; position:absolute; z-index:0; left:4px; top:29px; bottom:5px; width:2px; background:#8b929b; }
+      .legs::before { content:""; position:absolute; z-index:0; left:4px; top:5px; bottom:5px; width:2px; background:#8b929b; }
       .leg { position:relative; z-index:1; padding:0 0 13px; }
       .leg:last-child { padding-bottom:2px; }
-      .leg-product { margin:0 0 7px 25px; }
-      .product-badge { display:inline-flex; padding:4px 8px; border-radius:4px; background:#282d37; color:#fff; font-size:10px; font-weight:850; }
-      .product-badge.suburban { background:#178447; } .product-badge.urban { background:#005ca9; } .product-badge.bus { background:#7b2d75; } .product-badge.tram { background:#c86200; } .product-badge.mex { background:#f5c400; color:#20242a; } .product-badge.regional { background:#5c626b; } .product-badge.longdistance { background:#ec0016; } .product-badge.replacement { background:#8a3ffc; }
-      .stop-row { position:relative; display:grid; grid-template-columns:12px 20px minmax(0,1fr) auto; align-items:start; gap:6px; min-width:0; }
+      .stop-row { position:relative; display:grid; grid-template-columns:12px 20px minmax(34px,auto) minmax(0,1fr) auto; align-items:start; gap:6px; min-width:0; }
+      .stop-product { display:block; max-width:82px; overflow:hidden; padding:3px 6px; border-radius:4px; background:#282d37; color:#fff; font-size:9px; font-weight:850; line-height:1.2; text-align:center; text-overflow:ellipsis; white-space:nowrap; }
+      .stop-product.suburban { background:#178447; } .stop-product.urban { background:#005ca9; } .stop-product.bus { background:#7b2d75; } .stop-product.tram { background:#c86200; } .stop-product.mex { background:#f5c400; color:#20242a; } .stop-product.regional { background:#5c626b; } .stop-product.longdistance { background:#ec0016; } .stop-product.replacement { background:#8a3ffc; }
       .stop-marker { z-index:1; width:10px; height:10px; margin-top:3px; border:2px solid #555d67; border-radius:50%; background:var(--db-panel); }
       .stop-marker.end { background:#555d67; }
       .stop-kind { padding-top:2px; color:var(--db-muted); font-size:8px; font-weight:850; text-transform:uppercase; }
@@ -772,6 +772,9 @@ class DBNavigatorCard extends HTMLElement {
         .route-next-products { max-width:62px; }
         .route-next-products .mini-product:nth-of-type(n+2) { display:none; }
         .mini-product { max-width:58px; padding:4px 5px; }
+        .stop-row { grid-template-columns:12px 18px minmax(30px,auto) minmax(0,1fr) auto; gap:4px; }
+        .stop-product { max-width:55px; padding:3px 4px; font-size:8px; }
+        .stop-time { gap:2px; }
         .time strong { font-size:16px; }
         .meta { font-size:10px; }
         .segment { min-width:30px; padding:6px 4px; font-size:10px; }
