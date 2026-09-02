@@ -1,7 +1,7 @@
 {
   "domain": "db_navigator_widget",
   "name": "DB Navigator Widgets",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "documentation": "https://github.com/fbubeck/ha_db_navigator_widget",
   "issue_tracker": "https://github.com/fbubeck/ha_db_navigator_widget/issues",
   "codeowners": ["@fbubeck"],

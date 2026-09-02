@@ -13,7 +13,7 @@ Eine eigenständige Lovelace-Karte im Stil der mobilen DB-Navigator-App. Die Int
 - Start, Ziel, Gleise, Dauer, Umstiege und Störungsmeldungen
 - mehrere Strecken in einer Karte, jeweils unabhängig ein- und ausklappbar
 - eingeklappte Strecken zeigen rechts die nächste Abfahrt und die zugehörigen Verkehrsmittel
-- jede Verbindung per Klick aufklappbar mit vollständigem Reiseverlauf, Haltestellen, Soll-/Echtzeiten, Gleisen, Verkehrsmitteln, Meldungen und Datenquelle
+- jede Verbindung per Klick aufklappbar mit kompaktem Reiseverlauf, Haltestellen, Soll-/Echtzeiten, Gleisen, Verkehrsmitteln und Meldungen
 - wählbare Darstellung: Home-Assistant-Theme, explizit **Hell** oder **Dunkel**
 - Navigator-Navigation mit **Früher**, **Jetzt**, **Später** und frei wählbarer Abfahrtszeit
 - direkte Nutzung der `datetime`-, `switch`- und `button`-Entities von [EiS94/db_info](https://github.com/EiS94/db_info)

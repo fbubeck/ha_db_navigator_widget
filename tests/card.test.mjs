@@ -118,7 +118,7 @@ test("renders a continuous timeline with a connected dashed walking section", ()
   assert.match(styles, /\.walk-detail::after[\s\S]*top:-7px; bottom:-7px/);
 });
 
-test("renders all segment stops, platforms and source in expanded details", () => {
+test("renders compact segment stops and platforms without summary fact tiles", () => {
   const card = makeCard();
   const state = {
     entity_id: "sensor.route_1",
@@ -142,7 +142,8 @@ test("renders all segment stops, platforms and source in expanded details", () =
   assert.match(html, /Leonberg/);
   assert.match(html, /Feuerbach/);
   assert.match(html, /Gleis 1a/);
-  assert.match(html, /bahnland-bayern\.de/);
+  assert.doesNotMatch(html, /detail-fact/);
+  assert.doesNotMatch(html, /bahnland-bayern\.de/);
   assert.equal((html.match(/class="stop-product suburban">S60/g) || []).length, 2);
   assert.match(html, /class="stop-kind">Ab[\s\S]*S60[\s\S]*Leonberg/);
   assert.match(html, /class="stop-kind">An[\s\S]*S60[\s\S]*Feuerbach/);

@@ -1,4 +1,4 @@
-const DB_NAVIGATOR_CARD_VERSION = "0.3.3";
+const DB_NAVIGATOR_CARD_VERSION = "0.3.4";
 
 class DBNavigatorCard extends HTMLElement {
   constructor() {
@@ -521,18 +521,7 @@ class DBNavigatorCard extends HTMLElement {
   _renderJourneyDetails(state) {
     const attr = state.attributes || {};
     const details = this._parseDetails(this._attr(attr, "Details", "details"));
-    const source = this._attr(attr, "Source", "source");
-    const duration = this._attr(attr, "Duration", "duration");
-    const transfers = this._attr(attr, "Transfers", "transfers");
-    const name = this._attr(attr, "Name", "name");
     const problems = this._attr(attr, "Problems", "problems");
-
-    const facts = [
-      duration ? ["Reisezeit", duration] : null,
-      transfers !== null && transfers !== undefined ? ["Umstiege", transfers] : null,
-      name ? ["Verbindung", name] : null,
-      source ? ["Datenquelle", source] : null,
-    ].filter(Boolean).map(([label, value]) => `<div class="detail-fact"><span>${this._escape(label)}</span><b>${this._escape(value)}</b></div>`).join("");
 
     const legs = details.length ? details.map((step, index) => {
       const transport = this._transport(this._attr(step, "Name", "name"));
@@ -571,7 +560,6 @@ class DBNavigatorCard extends HTMLElement {
 
     return `<div class="journey-detail-inner">
       <div class="detail-title"><span>Reiseverlauf</span><button data-more-info="${this._escape(state.entity_id)}" title="Home-Assistant-Entität öffnen"><ha-icon icon="mdi:information-outline"></ha-icon></button></div>
-      <div class="detail-facts">${facts}</div>
       ${problems && !["null", "none"].includes(String(problems).toLowerCase()) ? `<div class="detail-problem"><ha-icon icon="mdi:alert-circle-outline"></ha-icon><span>${this._escape(problems)}</span></div>` : ""}
       <div class="legs">${legs}</div>
     </div>`;
@@ -727,10 +715,6 @@ class DBNavigatorCard extends HTMLElement {
       .detail-title { display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; color:var(--db-text); font-size:12px; font-weight:850; }
       .detail-title button { display:grid; place-items:center; width:28px; height:28px; border:0; border-radius:50%; background:var(--db-surface); color:var(--db-muted); cursor:pointer; }
       .detail-title button ha-icon { --mdc-icon-size:18px; }
-      .detail-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; margin-bottom:12px; }
-      .detail-fact { min-width:0; padding:7px 8px; border-radius:7px; background:var(--db-surface); }
-      .detail-fact span { display:block; margin-bottom:2px; color:var(--db-muted); font-size:8px; font-weight:750; text-transform:uppercase; letter-spacing:.35px; }
-      .detail-fact b { display:block; overflow:hidden; color:var(--db-text); font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
       .detail-problem { display:flex; gap:6px; margin-bottom:11px; padding:8px; border-radius:7px; background:#fff0d6; color:#7a4c00; font-size:10px; line-height:1.35; }
       .detail-problem ha-icon { flex:0 0 auto; --mdc-icon-size:16px; }
       .legs { position:relative; display:flex; flex-direction:column; }
