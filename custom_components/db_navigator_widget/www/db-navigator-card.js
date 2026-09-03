@@ -1,4 +1,4 @@
-const DB_NAVIGATOR_CARD_VERSION = "0.4.0";
+const DB_NAVIGATOR_CARD_VERSION = "0.4.1";
 
 class DBNavigatorCard extends HTMLElement {
   constructor() {
@@ -770,7 +770,7 @@ class DBNavigatorCard extends HTMLElement {
       .route-content > .list, .route-content > .empty { margin:0 10px; }
       .route-content > .list { padding-top:2px; }
       .list { display:flex; flex-direction:column; gap:9px; }
-      .route-content .journey { border:1px solid var(--db-divider); border-left:4px solid var(--db-red); box-shadow:none; }
+      .route-content .journey { border:1px solid var(--db-divider); box-shadow:none; }
       .navigation { margin:10px; padding:10px; border-radius:10px; background:var(--db-surface); }
       .nav-buttons { display:grid; grid-template-columns:1fr auto 1fr; gap:7px; }
       .nav-buttons button, .search-time { display:flex; align-items:center; justify-content:center; gap:3px; min-height:36px; border:1px solid var(--divider-color, #d7d9dc); border-radius:8px; background:var(--db-panel); color:var(--db-text); font-size:11px; font-weight:800; cursor:pointer; }
@@ -786,11 +786,10 @@ class DBNavigatorCard extends HTMLElement {
       .control-hint { margin-top:7px; color:var(--secondary-text-color, #69717c); font-size:9px; line-height:1.35; }
       .control-hint code { color:inherit; }
 
-      .journey { background:var(--db-panel); border-radius:12px; padding:13px 14px; border-left:4px solid var(--db-red); box-shadow:0 2px 7px rgba(20,24,30,.07); cursor:pointer; outline:none; transition:transform .14s ease, box-shadow .14s ease; }
+      .journey { background:var(--db-panel); border-radius:12px; padding:13px 14px; box-shadow:0 2px 7px rgba(20,24,30,.07); cursor:pointer; outline:none; transition:transform .14s ease, box-shadow .14s ease; }
       .journey:hover, .journey:focus-visible { transform:translateY(-1px); box-shadow:0 5px 14px rgba(20,24,30,.12); }
       .journey:focus-visible { box-shadow:0 0 0 2px var(--db-red), 0 5px 14px rgba(20,24,30,.12); }
-      .journey.has-problem { border-left-color:#e07900; }
-      .journey.cancelled { border-left-color:#c90018; background:color-mix(in srgb, var(--db-panel) 92%, #ec0016); }
+      .journey.cancelled { background:color-mix(in srgb, var(--db-panel) 92%, #ec0016); }
       .journey-badges { display:flex; flex-wrap:wrap; gap:4px; margin:0 0 7px; }
       .journey-badges:empty { display:none; }
       .journey-badges > span { padding:3px 6px; border-radius:999px; background:#e3f2e8; color:#087832; font-size:8px; font-weight:850; }
@@ -861,8 +860,9 @@ class DBNavigatorCard extends HTMLElement {
       .stop-row { position:relative; display:grid; grid-template-columns:12px 20px minmax(34px,auto) minmax(0,1fr) auto; align-items:start; gap:6px; min-width:0; }
       .stop-product { display:block; max-width:82px; overflow:hidden; padding:3px 6px; border-radius:4px; background:#282d37; color:#fff; font-size:9px; font-weight:850; line-height:1.2; text-align:center; text-overflow:ellipsis; white-space:nowrap; }
       .stop-product.suburban { background:#178447; } .stop-product.urban { background:#005ca9; } .stop-product.bus { background:#7b2d75; } .stop-product.tram { background:#c86200; } .stop-product.mex { background:#f5c400; color:#20242a; } .stop-product.regional { background:#5c626b; } .stop-product.longdistance { background:#ec0016; } .stop-product.replacement { background:#8a3ffc; }
-      .stop-marker { z-index:1; width:10px; height:10px; margin-top:3px; border:2px solid #555d67; border-radius:50%; background:var(--db-panel); }
+      .stop-marker { z-index:2; width:10px; height:10px; margin-top:3px; border:2px solid #555d67; border-radius:50%; background:var(--db-panel); }
       .stop-marker.end { background:#555d67; }
+      .leg:last-of-type .stop-row:last-child::after { content:""; position:absolute; z-index:1; left:2px; top:8px; bottom:-12px; width:6px; background:var(--db-panel); }
       .stop-kind { padding-top:2px; color:var(--db-muted); font-size:8px; font-weight:850; text-transform:uppercase; }
       .stop-main { display:flex; flex-direction:column; min-width:0; gap:2px; }
       .stop-main b { overflow:hidden; color:var(--db-text); font-size:11px; text-overflow:ellipsis; white-space:nowrap; }

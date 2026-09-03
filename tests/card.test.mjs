@@ -159,12 +159,20 @@ test("ranks fastest, earliest and lowest-transfer journeys", () => {
   assert.deepEqual(rankings["sensor.slow"], []);
 });
 
-test("renders a continuous timeline with a connected dashed walking section", () => {
+test("renders a continuous timeline that ends exactly at the final arrival marker", () => {
   const card = makeCard();
   const styles = card._styles();
   assert.match(styles, /\.legs::before[\s\S]*bottom:5px/);
   assert.match(styles, /\.walk-detail::after[\s\S]*border-left:2px dashed/);
   assert.match(styles, /\.walk-detail::after[\s\S]*top:-7px; bottom:-7px/);
+  assert.match(styles, /\.leg:last-of-type \.stop-row:last-child::after[\s\S]*top:8px/);
+});
+
+test("does not render colored side stripes on journey cards", () => {
+  const card = makeCard();
+  const styles = card._styles();
+  const journeyRule = styles.match(/\.route-content \.journey \{([^}]*)\}/)?.[1] || "";
+  assert.doesNotMatch(journeyRule, /border-left/);
 });
 
 test("renders compact segment stops and platforms without summary fact tiles", () => {
