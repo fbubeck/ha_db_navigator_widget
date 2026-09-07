@@ -16,7 +16,7 @@ Eine eigenständige Lovelace-Karte im Stil der mobilen DB-Navigator-App. Die Int
 - automatische Markierung für schnellste Fahrt, früheste Ankunft und wenigste Umstiege/Direktverbindung
 - Start, Ziel, Gleise, Dauer, Umstiege und Störungsmeldungen
 - mehrere Strecken in einer Karte, jeweils unabhängig ein- und ausklappbar
-- eingeklappte Strecken zeigen rechts in zwei flachen, einzeiligen Badges die nächste Abfahrt und die Fahrtzeitspanne aller angezeigten Verbindungen, beispielsweise `1h–1h 10min`
+- eingeklappte Strecken zeigen rechts platzsparend in einer einzigen Textzeile die nächste Abfahrt und deren Dauer, beispielsweise `17:32 · 1h 5min`
 - jede Verbindung per Klick aufklappbar mit kompaktem Reiseverlauf, Haltestellen, Soll-/Echtzeiten, Gleisen, Verkehrsmitteln und Meldungen
 - wählbare Darstellung: Home-Assistant-Theme, explizit **Hell** oder **Dunkel**
 - Navigator-Navigation mit **Früher**, **Jetzt**, **Später** und frei wählbarer Abfahrtszeit

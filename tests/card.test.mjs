@@ -90,14 +90,13 @@ test("normalizes every replacement-service label to one SEV badge", () => {
   assert.deepEqual(card._transport("Bus Schienenersatzverkehr SEV"), { kind: "replacement", label: "SEV" });
 });
 
-test("shows next departure and a compact five-journey duration badge", () => {
+test("shows only next departure and its duration in a compact inline preview", () => {
   const card = makeCard();
-  const states = [60, 63, 65, 68, 70].map((minutes) => ({ attributes: { Duration: `${minutes}min` } }));
+  const states = [65, 63, 70, 68, 60].map((minutes) => ({ attributes: { Duration: `${minutes}min` } }));
   const html = card._renderRoutePreview(states, "2026-09-01T17:32:00+0200");
-  assert.match(html, /Nächste Abfahrt/);
-  assert.match(html, /class="duration-badge"/);
-  assert.match(html, /<small>Fahrtzeit<\/small><strong>1h–1h 10min<\/strong>/);
-  assert.doesNotMatch(html, /duration-circle|Bus|S6|mini-product/);
+  assert.match(html, /aria-label="Nächste Abfahrt [^"]+, Dauer 1h 5min"/);
+  assert.match(html, /class="route-duration"><span aria-hidden="true">·<\/span> 1h 5min/);
+  assert.doesNotMatch(html, /Fahrtzeit|duration-badge|duration-circle|60–70/);
 });
 
 test("calculates duration minutes from timestamps and DB Info duration strings", () => {

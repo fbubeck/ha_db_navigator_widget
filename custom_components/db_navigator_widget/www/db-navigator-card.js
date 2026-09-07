@@ -1,4 +1,4 @@
-const DB_NAVIGATOR_CARD_VERSION = "0.4.3";
+const DB_NAVIGATOR_CARD_VERSION = "0.4.4";
 
 class DBNavigatorCard extends HTMLElement {
   constructor() {
@@ -148,20 +148,6 @@ class DBNavigatorCard extends HTMLElement {
     const hours = Math.floor(value / 60);
     const remainder = value % 60;
     return remainder ? `${hours}h ${remainder}min` : `${hours}h`;
-  }
-
-  _durationRange(states) {
-    const values = states.map((state) => this._durationMinutes(state)).filter((value) => value !== null);
-    if (!values.length) return null;
-    const minimum = Math.min(...values);
-    const maximum = Math.max(...values);
-    return {
-      minimum,
-      maximum,
-      label: minimum === maximum
-        ? this._formatDurationMinutes(minimum)
-        : `${this._formatDurationMinutes(minimum)}–${this._formatDurationMinutes(maximum)}`,
-    };
   }
 
   _problemInfo(raw) {
@@ -613,15 +599,12 @@ class DBNavigatorCard extends HTMLElement {
 
   _renderRoutePreview(states, departureTime) {
     if (!states.length) return "";
-    const countdown = this._countdownInfo(departureTime);
-    const range = this._durationRange(states);
-    return `<span class="route-next">
-      <span class="route-next-time">
-        <small>Nächste Abfahrt</small>
-        <strong>${this._escape(this._formatTime(departureTime))}</strong>
-        ${countdown ? `<em class="route-countdown ${countdown.status}">${this._escape(countdown.label)}</em>` : ""}
-      </span>
-      ${range ? `<span class="duration-badge" title="Fahrtzeitspanne der ${states.length} angezeigten Verbindungen"><small>Fahrtzeit</small><strong>${this._escape(range.label)}</strong></span>` : ""}
+    const duration = this._durationMinutes(states[0]);
+    const departure = this._formatTime(departureTime);
+    const durationText = duration === null ? "" : this._formatDurationMinutes(duration);
+    return `<span class="route-next" aria-label="Nächste Abfahrt ${this._escape(departure)}${durationText ? `, Dauer ${this._escape(durationText)}` : ""}" title="Nächste Abfahrt${durationText ? " · Dauer" : ""}">
+      <strong>${this._escape(departure)}</strong>
+      ${durationText ? `<span class="route-duration"><span aria-hidden="true">·</span> ${this._escape(durationText)}</span>` : ""}
     </span>`;
   }
 
@@ -780,16 +763,10 @@ class DBNavigatorCard extends HTMLElement {
       .route-heading { display:flex; flex-direction:column; min-width:0; gap:3px; }
       .route-heading strong { overflow:hidden; font-size:14px; text-overflow:ellipsis; white-space:nowrap; }
       .route-heading small { color:var(--db-muted); font-size:10px; }
-      .route-next { display:flex; align-items:center; justify-content:flex-end; gap:5px; min-width:0; white-space:nowrap; }
+      .route-next { display:inline-flex; align-items:baseline; justify-content:flex-end; gap:4px; min-width:0; padding:0 2px; color:var(--db-muted); line-height:1; white-space:nowrap; }
       .route-section.open .route-next { display:none; }
-      .route-next-time, .duration-badge { display:inline-flex; align-items:baseline; gap:4px; min-height:29px; padding:6px 8px; border-radius:7px; background:var(--db-surface); line-height:1; }
-      .route-next-time small, .duration-badge small { color:var(--db-muted); font-size:7px; font-weight:800; text-transform:uppercase; }
-      .route-next-time strong { color:var(--db-text); font-size:14px; font-variant-numeric:tabular-nums; }
-      .route-countdown { color:var(--db-muted); font-size:8px; font-style:normal; font-weight:750; }
-      .route-countdown::before { content:"·"; margin-right:4px; }
-      .route-countdown.soon, .route-countdown.now { color:#c90018; }
-      .duration-badge { border:1px solid color-mix(in srgb, var(--db-red) 45%, var(--db-divider)); background:color-mix(in srgb, var(--db-red) 5%, var(--db-panel)); }
-      .duration-badge strong { color:var(--db-text); font-size:10px; font-weight:900; font-variant-numeric:tabular-nums; }
+      .route-next > strong { color:var(--db-text); font-size:14px; font-weight:850; font-variant-numeric:tabular-nums; }
+      .route-duration { color:var(--db-muted); font-size:9px; font-weight:750; font-variant-numeric:tabular-nums; }
       .route-chevron { --mdc-icon-size:22px; color:var(--db-muted); transition:transform .22s ease; }
       .route-section.open .route-chevron { transform:rotate(180deg); }
       .route-collapse { display:grid; grid-template-rows:0fr; transition:grid-template-rows .25s ease; }
@@ -930,13 +907,9 @@ class DBNavigatorCard extends HTMLElement {
         .headline { font-size:14px; }
         .route-header { grid-template-columns:30px minmax(64px,1fr) auto 20px; gap:6px; padding:10px 8px; }
         .route-symbol { width:28px; height:28px; }
-        .route-next { gap:4px; }
-        .route-next-time, .duration-badge { min-height:27px; padding:5px 6px; }
-        .route-next-time > small { font-size:0; }
-        .route-next-time > small::after { content:"Ab"; font-size:7px; }
-        .route-next-time strong { font-size:13px; }
-        .route-countdown { display:none; }
-        .duration-badge strong { font-size:9px; }
+        .route-next { gap:3px; padding:0; }
+        .route-next > strong { font-size:13px; }
+        .route-duration { font-size:8px; }
         .stop-row { grid-template-columns:12px 18px minmax(30px,auto) minmax(0,1fr) auto; gap:4px; }
         .stop-product { max-width:55px; padding:3px 4px; font-size:8px; }
         .stop-time { gap:2px; }
