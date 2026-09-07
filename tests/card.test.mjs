@@ -90,13 +90,14 @@ test("normalizes every replacement-service label to one SEV badge", () => {
   assert.deepEqual(card._transport("Bus Schienenersatzverkehr SEV"), { kind: "replacement", label: "SEV" });
 });
 
-test("shows only next departure and its duration in a compact inline preview", () => {
+test("shows departure, live hint and duration range in one compact line", () => {
   const card = makeCard();
   const states = [65, 63, 70, 68, 60].map((minutes) => ({ attributes: { Duration: `${minutes}min` } }));
-  const html = card._renderRoutePreview(states, "2026-09-01T17:32:00+0200");
-  assert.match(html, /aria-label="Nächste Abfahrt [^"]+, Dauer 1h 5min"/);
-  assert.match(html, /class="route-duration"><span aria-hidden="true">·<\/span> 1h 5min/);
-  assert.doesNotMatch(html, /Fahrtzeit|duration-badge|duration-circle|60–70/);
+  const departure = new Date(Date.now() + 120000).toISOString();
+  const html = card._renderRoutePreview(states, departure);
+  assert.match(html, /class="route-countdown soon">in [12] Min\.<\/em>/);
+  assert.match(html, /class="route-duration"><span aria-hidden="true">·<\/span> 1h–1h 10min/);
+  assert.doesNotMatch(html, /duration-badge|duration-circle|<small>Fahrtzeit/);
 });
 
 test("calculates duration minutes from timestamps and DB Info duration strings", () => {
@@ -110,10 +111,11 @@ test("calculates duration minutes from timestamps and DB Info duration strings",
   } }), 65);
 });
 
-test("renders the selectable light appearance", () => {
-  const card = makeCard({ appearance: "light", entity_prefix: "sensor.route_" });
+test("renders the selectable light appearance without a top title or trip counter", () => {
+  const card = makeCard({ appearance: "light", entity_prefix: "sensor.route_", title: "Alter Titel" });
   card.hass = { states: {} };
   assert.match(card.shadowRoot.innerHTML, /<ha-card class="theme-light density-comfortable">/);
+  assert.doesNotMatch(card.shadowRoot.innerHTML, /class="header"|Alter Titel|Strecken ·|Fahrten<\/span>/);
 });
 
 test("supports a selectable compact density", () => {

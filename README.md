@@ -16,7 +16,8 @@ Eine eigenständige Lovelace-Karte im Stil der mobilen DB-Navigator-App. Die Int
 - automatische Markierung für schnellste Fahrt, früheste Ankunft und wenigste Umstiege/Direktverbindung
 - Start, Ziel, Gleise, Dauer, Umstiege und Störungsmeldungen
 - mehrere Strecken in einer Karte, jeweils unabhängig ein- und ausklappbar
-- eingeklappte Strecken zeigen rechts platzsparend in einer einzigen Textzeile die nächste Abfahrt und deren Dauer, beispielsweise `17:32 · 1h 5min`
+- eingeklappte Strecken zeigen rechts platzsparend in einer einzigen Textzeile die nächste Abfahrt, einen kleinen Live-Hinweis und dezent die Fahrtzeitspanne, beispielsweise `17:32  in 2 Min.  · 1h–1h 10min`
+- keine zusätzliche Kartenüberschrift oder globale Zählanzeige – die Darstellung beginnt direkt mit den Strecken
 - jede Verbindung per Klick aufklappbar mit kompaktem Reiseverlauf, Haltestellen, Soll-/Echtzeiten, Gleisen, Verkehrsmitteln und Meldungen
 - wählbare Darstellung: Home-Assistant-Theme, explizit **Hell** oder **Dunkel**
 - Navigator-Navigation mit **Früher**, **Jetzt**, **Später** und frei wählbarer Abfahrtszeit
@@ -53,7 +54,6 @@ Jeder Eintrag unter `routes` entspricht einem DB-Info-Konfigurationseintrag. Das
 
 ```yaml
 type: custom:db-navigator-card
-title: Meine Reisen
 appearance: light  # auto, light oder dark
 density: compact   # comfortable oder compact
 max_connections: 5
@@ -85,7 +85,6 @@ Das Widget leitet die IDs aus dem Sensorpräfix ab. Falls Home Assistant abweich
 
 ```yaml
 type: custom:db-navigator-card
-title: Meine Reisen
 routes:
   - title: Bahnhof → Arbeit
     entity_prefix: sensor.bahnhof_arbeit_verbindung_
@@ -107,7 +106,6 @@ Die bisherige Konfiguration bleibt abwärtskompatibel:
 
 ```yaml
 type: custom:db-navigator-card
-title: Pendeln
 person_entity: person.ferdinand
 home_state: home
 home_prefix: sensor.bahnhof_arbeit_verbindung_
@@ -121,7 +119,6 @@ Für getrennt ein- und ausklappbare Richtungen sollten stattdessen zwei `routes`
 
 | Option | Standard | Beschreibung |
 |---|---:|---|
-| `title` | `Meine Reisen` | Überschrift der Karte |
 | `appearance` | `auto` | `auto` folgt dem HA-Theme; `light` erzwingt den hellen und `dark` den dunklen Navigator-Look |
 | `density` | `comfortable` | `compact` reduziert Abstände und Größen für kleine Smartphone-Dashboards |
 | `routes` | – | Liste von Streckenobjekten; unterstützt `title`, `entity_prefix`, `entities`, `open` und die drei Control-Entities |
@@ -132,7 +129,6 @@ Für getrennt ein- und ausklappbare Richtungen sollten stattdessen zwei `routes`
 | `home_state` | `home` | Status, bei dem `home_prefix` aktiv ist |
 | `home_prefix` | – | Sensorpräfix für zuhause |
 | `away_prefix` | – | Sensorpräfix für alle anderen Statuswerte |
-| `show_header` | `true` | Kopfzeile anzeigen |
 | `show_route` | `true` | Start/Ziel unter jedem Fahrtblock anzeigen |
 | `show_platforms` | `true` | Gleise anzeigen, sofern vorhanden |
 | `show_time_picker` | `true` | Auswahl einer freien Abfahrtszeit anzeigen |

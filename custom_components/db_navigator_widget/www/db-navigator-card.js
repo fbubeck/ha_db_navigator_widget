@@ -1,4 +1,4 @@
-const DB_NAVIGATOR_CARD_VERSION = "0.4.4";
+const DB_NAVIGATOR_CARD_VERSION = "0.5.0";
 
 class DBNavigatorCard extends HTMLElement {
   constructor() {
@@ -14,10 +14,8 @@ class DBNavigatorCard extends HTMLElement {
   setConfig(config) {
     if (!config) throw new Error("Konfiguration fehlt");
     this._config = {
-      title: "Meine Reisen",
       max_connections: 5,
       home_state: "home",
-      show_header: true,
       show_route: true,
       show_platforms: true,
       show_time_picker: true,
@@ -57,7 +55,6 @@ class DBNavigatorCard extends HTMLElement {
   static getStubConfig() {
     return {
       type: "custom:db-navigator-card",
-      title: "Meine Reisen",
       routes: [
         {
           title: "Bahnhof → Arbeit",
@@ -148,6 +145,20 @@ class DBNavigatorCard extends HTMLElement {
     const hours = Math.floor(value / 60);
     const remainder = value % 60;
     return remainder ? `${hours}h ${remainder}min` : `${hours}h`;
+  }
+
+  _durationRange(states) {
+    const values = states.map((state) => this._durationMinutes(state)).filter((value) => value !== null);
+    if (!values.length) return null;
+    const minimum = Math.min(...values);
+    const maximum = Math.max(...values);
+    return {
+      minimum,
+      maximum,
+      label: minimum === maximum
+        ? this._formatDurationMinutes(minimum)
+        : `${this._formatDurationMinutes(minimum)}–${this._formatDurationMinutes(maximum)}`,
+    };
   }
 
   _problemInfo(raw) {
@@ -599,12 +610,13 @@ class DBNavigatorCard extends HTMLElement {
 
   _renderRoutePreview(states, departureTime) {
     if (!states.length) return "";
-    const duration = this._durationMinutes(states[0]);
     const departure = this._formatTime(departureTime);
-    const durationText = duration === null ? "" : this._formatDurationMinutes(duration);
-    return `<span class="route-next" aria-label="Nächste Abfahrt ${this._escape(departure)}${durationText ? `, Dauer ${this._escape(durationText)}` : ""}" title="Nächste Abfahrt${durationText ? " · Dauer" : ""}">
+    const countdown = this._countdownInfo(departureTime);
+    const range = this._durationRange(states);
+    return `<span class="route-next" aria-label="Nächste Abfahrt ${this._escape(departure)}${countdown ? `, ${this._escape(countdown.label)}` : ""}${range ? `, Fahrtzeitspanne ${this._escape(range.label)}` : ""}">
       <strong>${this._escape(departure)}</strong>
-      ${durationText ? `<span class="route-duration"><span aria-hidden="true">·</span> ${this._escape(durationText)}</span>` : ""}
+      ${countdown ? `<em class="route-countdown ${countdown.status}">${this._escape(countdown.label)}</em>` : ""}
+      ${range ? `<span class="route-duration"><span aria-hidden="true">·</span> ${this._escape(range.label)}</span>` : ""}
     </span>`;
   }
 
@@ -744,16 +756,7 @@ class DBNavigatorCard extends HTMLElement {
       ha-card.theme-light { --db-surface:#f3f4f6; --db-panel:#fff; --db-text:#20242a; --db-muted:#69717c; --db-divider:#e0e3e7; color-scheme:light; }
       ha-card.theme-dark { --db-surface:#20242a; --db-panel:#30353d; --db-text:#f5f6f7; --db-muted:#b0b6bf; --db-divider:#484e57; color-scheme:dark; }
       .db-stripe { height:5px; background:var(--db-red); }
-      .content { padding:14px; }
-      .header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; padding:0 2px 12px; }
-      .brand { display:flex; gap:10px; align-items:center; min-width:0; }
-      .db-logo { display:grid; place-items:center; flex:0 0 auto; width:34px; height:24px; border:2px solid var(--db-red); border-radius:3px; color:var(--db-red); background:#fff; font-size:14px; font-weight:900; letter-spacing:-1px; }
-      .heading { min-width:0; }
-      .title { font-size:13px; font-weight:750; color:var(--secondary-text-color, #5f6670); }
-      .headline { display:flex; align-items:center; gap:6px; margin-top:2px; min-width:0; font-size:16px; font-weight:800; color:var(--primary-text-color, #1f2329); }
-      .headline span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-      .headline ha-icon { flex:0 0 auto; --mdc-icon-size:17px; color:#878d96; }
-      .count { flex:0 0 auto; padding:4px 8px; border-radius:999px; background:var(--db-panel); color:var(--db-muted); font-size:10px; font-weight:800; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+      .content { padding:10px; }
       .routes { display:flex; flex-direction:column; gap:10px; }
       .route-section { overflow:hidden; border-radius:13px; background:var(--db-panel); box-shadow:0 2px 8px rgba(20,24,30,.08); }
       .route-header { display:grid; grid-template-columns:34px minmax(0,1fr) auto 24px; align-items:center; gap:10px; width:100%; padding:12px 13px; border:0; background:transparent; color:var(--db-text); text-align:left; cursor:pointer; }
@@ -766,6 +769,8 @@ class DBNavigatorCard extends HTMLElement {
       .route-next { display:inline-flex; align-items:baseline; justify-content:flex-end; gap:4px; min-width:0; padding:0 2px; color:var(--db-muted); line-height:1; white-space:nowrap; }
       .route-section.open .route-next { display:none; }
       .route-next > strong { color:var(--db-text); font-size:14px; font-weight:850; font-variant-numeric:tabular-nums; }
+      .route-countdown { padding:2px 4px; border-radius:4px; background:var(--db-surface); color:var(--db-muted); font-size:8px; font-style:normal; font-weight:750; }
+      .route-countdown.soon, .route-countdown.now { background:#fde1e4; color:#c90018; }
       .route-duration { color:var(--db-muted); font-size:9px; font-weight:750; font-variant-numeric:tabular-nums; }
       .route-chevron { --mdc-icon-size:22px; color:var(--db-muted); transition:transform .22s ease; }
       .route-section.open .route-chevron { transform:rotate(180deg); }
@@ -884,7 +889,6 @@ class DBNavigatorCard extends HTMLElement {
       .walk-detail .segment { position:relative; z-index:1; min-height:24px; flex:0 0 auto; }
       .walk-detail.relaxed { color:#087832; } .walk-detail.tight { color:#8a5300; } .walk-detail.critical, .walk-detail.missed { color:#c90018; font-weight:750; }
       ha-card.density-compact .content { padding:9px; }
-      ha-card.density-compact .header { padding-bottom:8px; }
       ha-card.density-compact .routes, ha-card.density-compact .list { gap:5px; }
       ha-card.density-compact .route-header { padding:8px 10px; }
       ha-card.density-compact .journey { padding:8px 9px; border-radius:9px; }
@@ -903,12 +907,11 @@ class DBNavigatorCard extends HTMLElement {
       @media (max-width:420px) {
         .content { padding:11px; }
         .journey { padding:12px 11px; }
-        .header { padding-bottom:10px; }
-        .headline { font-size:14px; }
         .route-header { grid-template-columns:30px minmax(64px,1fr) auto 20px; gap:6px; padding:10px 8px; }
         .route-symbol { width:28px; height:28px; }
         .route-next { gap:3px; padding:0; }
         .route-next > strong { font-size:13px; }
+        .route-countdown { padding:2px 3px; font-size:7px; }
         .route-duration { font-size:8px; }
         .stop-row { grid-template-columns:12px 18px minmax(30px,auto) minmax(0,1fr) auto; gap:4px; }
         .stop-product { max-width:55px; padding:3px 4px; font-size:8px; }
@@ -944,22 +947,10 @@ class DBNavigatorCard extends HTMLElement {
     if (signature === this._lastSignature) return;
     this._lastSignature = signature;
 
-    const totalConnections = routeData.reduce((sum, item) => sum + item.states.length, 0);
-    const header = this._config.show_header === false ? "" : `<div class="header">
-      <div class="brand">
-        <span class="db-logo" aria-label="DB">DB</span>
-        <div class="heading">
-          <div class="title">DB Navigator</div>
-          <div class="headline"><span>${this._escape(this._config.title)}</span></div>
-        </div>
-      </div>
-      <span class="count">${routeData.length} ${routeData.length === 1 ? "Strecke" : "Strecken"} · ${totalConnections} Fahrten</span>
-    </div>`;
-
     const body = `<div class="routes">${routeData.map((item, index) => this._renderRouteSection(item, index)).join("")}</div>`;
     const appearance = ["light", "dark"].includes(this._config.appearance) ? this._config.appearance : "auto";
     const density = this._config.density === "compact" ? "compact" : "comfortable";
-    this.shadowRoot.innerHTML = `<style>${this._styles()}</style><ha-card class="theme-${appearance} density-${density}"><div class="db-stripe"></div><div class="content">${header}${body}</div></ha-card>`;
+    this.shadowRoot.innerHTML = `<style>${this._styles()}</style><ha-card class="theme-${appearance} density-${density}"><div class="db-stripe"></div><div class="content">${body}</div></ha-card>`;
 
     this.shadowRoot.querySelectorAll("[data-toggle-route]").forEach((element) => {
       element.addEventListener("click", () => {
@@ -1051,7 +1042,6 @@ class DBNavigatorCardEditor extends HTMLElement {
     this.shadowRoot.innerHTML = `<style>
       :host{display:block;padding:12px 0;font-family:sans-serif} .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px} label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--secondary-text-color)} label.wide{grid-column:1/-1} input,textarea,select{padding:10px;border:1px solid var(--divider-color);border-radius:8px;background:var(--card-background-color);color:var(--primary-text-color);font:inherit} textarea{min-height:170px;resize:vertical;font-family:monospace;font-size:11px} textarea.invalid{border-color:var(--error-color,#db4437)} .hint{margin:12px 0 0;font-size:11px;line-height:1.4;color:var(--secondary-text-color)} @media(max-width:500px){.grid{grid-template-columns:1fr}}
     </style><div class="grid">
-      ${this._field("title", "Titel", "Meine Reisen")}
       <label><span>Darstellung</span><select data-field="appearance"><option value="auto" ${!this._config.appearance || this._config.appearance === "auto" ? "selected" : ""}>Home-Assistant-Theme</option><option value="light" ${this._config.appearance === "light" ? "selected" : ""}>Hell</option><option value="dark" ${this._config.appearance === "dark" ? "selected" : ""}>Dunkel</option></select></label>
       <label><span>Kartendichte</span><select data-field="density"><option value="comfortable" ${!this._config.density || this._config.density === "comfortable" ? "selected" : ""}>Komfortabel</option><option value="compact" ${this._config.density === "compact" ? "selected" : ""}>Kompakt</option></select></label>
       ${this._field("max_connections", "Verbindungen je Strecke", "5")}
