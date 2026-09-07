@@ -95,7 +95,7 @@ test("shows departure, live hint and duration range in one compact line", () => 
   const states = [65, 63, 70, 68, 60].map((minutes) => ({ attributes: { Duration: `${minutes}min` } }));
   const departure = new Date(Date.now() + 120000).toISOString();
   const html = card._renderRoutePreview(states, departure);
-  assert.match(html, /class="route-countdown soon">in [12] Min\.<\/em>/);
+  assert.match(html, /class="route-next-time">[\s\S]*class="route-countdown soon">in [12] Min\.<\/em>[\s\S]*<strong>[^<]+<\/strong>/);
   assert.match(html, /class="route-duration"><span aria-hidden="true">·<\/span> 1h–1h 10min/);
   assert.doesNotMatch(html, /duration-badge|duration-circle|<small>Fahrtzeit/);
 });
@@ -111,11 +111,12 @@ test("calculates duration minutes from timestamps and DB Info duration strings",
   } }), 65);
 });
 
-test("renders the selectable light appearance without a top title or trip counter", () => {
+test("keeps the DB Navigator brand header without custom title or trip counter", () => {
   const card = makeCard({ appearance: "light", entity_prefix: "sensor.route_", title: "Alter Titel" });
   card.hass = { states: {} };
   assert.match(card.shadowRoot.innerHTML, /<ha-card class="theme-light density-comfortable">/);
-  assert.doesNotMatch(card.shadowRoot.innerHTML, /class="header"|Alter Titel|Strecken ·|Fahrten<\/span>/);
+  assert.match(card.shadowRoot.innerHTML, /class="header"[\s\S]*class="db-logo"[\s\S]*DB Navigator/);
+  assert.doesNotMatch(card.shadowRoot.innerHTML, /Alter Titel|2 Strecken|10 Fahrten/);
 });
 
 test("supports a selectable compact density", () => {

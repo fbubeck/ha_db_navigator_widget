@@ -1,4 +1,4 @@
-const DB_NAVIGATOR_CARD_VERSION = "0.5.0";
+const DB_NAVIGATOR_CARD_VERSION = "0.5.1";
 
 class DBNavigatorCard extends HTMLElement {
   constructor() {
@@ -614,8 +614,10 @@ class DBNavigatorCard extends HTMLElement {
     const countdown = this._countdownInfo(departureTime);
     const range = this._durationRange(states);
     return `<span class="route-next" aria-label="Nächste Abfahrt ${this._escape(departure)}${countdown ? `, ${this._escape(countdown.label)}` : ""}${range ? `, Fahrtzeitspanne ${this._escape(range.label)}` : ""}">
-      <strong>${this._escape(departure)}</strong>
-      ${countdown ? `<em class="route-countdown ${countdown.status}">${this._escape(countdown.label)}</em>` : ""}
+      <span class="route-next-time">
+        ${countdown ? `<em class="route-countdown ${countdown.status}">${this._escape(countdown.label)}</em>` : `<small>Nächste</small>`}
+        <strong>${this._escape(departure)}</strong>
+      </span>
       ${range ? `<span class="route-duration"><span aria-hidden="true">·</span> ${this._escape(range.label)}</span>` : ""}
     </span>`;
   }
@@ -757,6 +759,10 @@ class DBNavigatorCard extends HTMLElement {
       ha-card.theme-dark { --db-surface:#20242a; --db-panel:#30353d; --db-text:#f5f6f7; --db-muted:#b0b6bf; --db-divider:#484e57; color-scheme:dark; }
       .db-stripe { height:5px; background:var(--db-red); }
       .content { padding:10px; }
+      .header { display:flex; align-items:center; min-height:26px; padding:0 2px 8px; }
+      .brand { display:flex; align-items:center; gap:8px; }
+      .db-logo { display:grid; place-items:center; width:30px; height:21px; border:2px solid var(--db-red); border-radius:3px; background:#fff; color:var(--db-red); font-size:12px; font-weight:900; letter-spacing:-.8px; }
+      .brand-name { color:var(--db-text); font-size:13px; font-weight:800; }
       .routes { display:flex; flex-direction:column; gap:10px; }
       .route-section { overflow:hidden; border-radius:13px; background:var(--db-panel); box-shadow:0 2px 8px rgba(20,24,30,.08); }
       .route-header { display:grid; grid-template-columns:34px minmax(0,1fr) auto 24px; align-items:center; gap:10px; width:100%; padding:12px 13px; border:0; background:transparent; color:var(--db-text); text-align:left; cursor:pointer; }
@@ -766,12 +772,13 @@ class DBNavigatorCard extends HTMLElement {
       .route-heading { display:flex; flex-direction:column; min-width:0; gap:3px; }
       .route-heading strong { overflow:hidden; font-size:14px; text-overflow:ellipsis; white-space:nowrap; }
       .route-heading small { color:var(--db-muted); font-size:10px; }
-      .route-next { display:inline-flex; align-items:baseline; justify-content:flex-end; gap:4px; min-width:0; padding:0 2px; color:var(--db-muted); line-height:1; white-space:nowrap; }
+      .route-next { display:inline-flex; align-items:flex-end; justify-content:flex-end; gap:4px; min-width:0; padding:0 2px; color:var(--db-muted); line-height:1; white-space:nowrap; }
       .route-section.open .route-next { display:none; }
-      .route-next > strong { color:var(--db-text); font-size:14px; font-weight:850; font-variant-numeric:tabular-nums; }
-      .route-countdown { padding:2px 4px; border-radius:4px; background:var(--db-surface); color:var(--db-muted); font-size:8px; font-style:normal; font-weight:750; }
-      .route-countdown.soon, .route-countdown.now { background:#fde1e4; color:#c90018; }
-      .route-duration { color:var(--db-muted); font-size:9px; font-weight:750; font-variant-numeric:tabular-nums; }
+      .route-next-time { display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
+      .route-next-time > strong { color:var(--db-text); font-size:14px; font-weight:850; font-variant-numeric:tabular-nums; }
+      .route-next-time > small, .route-countdown { color:var(--db-muted); font-size:7px; font-style:normal; font-weight:750; }
+      .route-countdown.soon, .route-countdown.now { color:#c90018; }
+      .route-duration { padding-bottom:1px; color:var(--db-muted); font-size:9px; font-weight:750; font-variant-numeric:tabular-nums; }
       .route-chevron { --mdc-icon-size:22px; color:var(--db-muted); transition:transform .22s ease; }
       .route-section.open .route-chevron { transform:rotate(180deg); }
       .route-collapse { display:grid; grid-template-rows:0fr; transition:grid-template-rows .25s ease; }
@@ -889,6 +896,7 @@ class DBNavigatorCard extends HTMLElement {
       .walk-detail .segment { position:relative; z-index:1; min-height:24px; flex:0 0 auto; }
       .walk-detail.relaxed { color:#087832; } .walk-detail.tight { color:#8a5300; } .walk-detail.critical, .walk-detail.missed { color:#c90018; font-weight:750; }
       ha-card.density-compact .content { padding:9px; }
+      ha-card.density-compact .header { min-height:23px; padding-bottom:5px; }
       ha-card.density-compact .routes, ha-card.density-compact .list { gap:5px; }
       ha-card.density-compact .route-header { padding:8px 10px; }
       ha-card.density-compact .journey { padding:8px 9px; border-radius:9px; }
@@ -910,8 +918,8 @@ class DBNavigatorCard extends HTMLElement {
         .route-header { grid-template-columns:30px minmax(64px,1fr) auto 20px; gap:6px; padding:10px 8px; }
         .route-symbol { width:28px; height:28px; }
         .route-next { gap:3px; padding:0; }
-        .route-next > strong { font-size:13px; }
-        .route-countdown { padding:2px 3px; font-size:7px; }
+        .route-next-time > strong { font-size:13px; }
+        .route-countdown { font-size:7px; }
         .route-duration { font-size:8px; }
         .stop-row { grid-template-columns:12px 18px minmax(30px,auto) minmax(0,1fr) auto; gap:4px; }
         .stop-product { max-width:55px; padding:3px 4px; font-size:8px; }
@@ -947,10 +955,11 @@ class DBNavigatorCard extends HTMLElement {
     if (signature === this._lastSignature) return;
     this._lastSignature = signature;
 
+    const header = `<div class="header"><div class="brand"><span class="db-logo" aria-label="DB">DB</span><span class="brand-name">DB Navigator</span></div></div>`;
     const body = `<div class="routes">${routeData.map((item, index) => this._renderRouteSection(item, index)).join("")}</div>`;
     const appearance = ["light", "dark"].includes(this._config.appearance) ? this._config.appearance : "auto";
     const density = this._config.density === "compact" ? "compact" : "comfortable";
-    this.shadowRoot.innerHTML = `<style>${this._styles()}</style><ha-card class="theme-${appearance} density-${density}"><div class="db-stripe"></div><div class="content">${body}</div></ha-card>`;
+    this.shadowRoot.innerHTML = `<style>${this._styles()}</style><ha-card class="theme-${appearance} density-${density}"><div class="db-stripe"></div><div class="content">${header}${body}</div></ha-card>`;
 
     this.shadowRoot.querySelectorAll("[data-toggle-route]").forEach((element) => {
       element.addEventListener("click", () => {
