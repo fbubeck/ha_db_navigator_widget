@@ -90,19 +90,21 @@ test("normalizes every replacement-service label to one SEV badge", () => {
   assert.deepEqual(card._transport("Bus Schienenersatzverkehr SEV"), { kind: "replacement", label: "SEV" });
 });
 
-test("shows next departure and the five-journey duration range in a circle", () => {
+test("shows next departure and a compact five-journey duration badge", () => {
   const card = makeCard();
   const states = [60, 63, 65, 68, 70].map((minutes) => ({ attributes: { Duration: `${minutes}min` } }));
   const html = card._renderRoutePreview(states, "2026-09-01T17:32:00+0200");
   assert.match(html, /Nächste Abfahrt/);
-  assert.match(html, /class="duration-circle"/);
-  assert.match(html, />60–70<\/strong><small>min/);
-  assert.doesNotMatch(html, /Bus|S6|mini-product/);
+  assert.match(html, /class="duration-badge"/);
+  assert.match(html, /<small>Fahrtzeit<\/small><strong>1h–1h 10min<\/strong>/);
+  assert.doesNotMatch(html, /duration-circle|Bus|S6|mini-product/);
 });
 
 test("calculates duration minutes from timestamps and DB Info duration strings", () => {
   const card = makeCard();
   assert.equal(card._durationMinutes({ attributes: { Duration: "1h 10min" } }), 70);
+  assert.equal(card._formatDurationMinutes(65), "1h 5min");
+  assert.equal(card._formatDurationMinutes(60), "1h");
   assert.equal(card._durationMinutes({ attributes: {
     "Departure Time": "2026-09-01T17:00:00+0200",
     "Arrival Time": "2026-09-01T18:05:00+0200",
