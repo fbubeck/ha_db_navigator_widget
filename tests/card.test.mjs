@@ -95,9 +95,25 @@ test("shows departure, live hint and duration range in one compact line", () => 
   const states = [65, 63, 70, 68, 60].map((minutes) => ({ attributes: { Duration: `${minutes}min` } }));
   const departure = new Date(Date.now() + 120000).toISOString();
   const html = card._renderRoutePreview(states, departure);
-  assert.match(html, /class="route-next-time">[\s\S]*class="route-countdown soon">in [12] Min\.<\/em>[\s\S]*<strong>[^<]+<\/strong>/);
+  assert.match(html, /class="route-next-time ontime">[\s\S]*class="route-countdown soon">in [12] Min\.<\/em>[\s\S]*<strong>[^<]+<\/strong>/);
   assert.match(html, /class="route-duration"><span aria-hidden="true">·<\/span> 1h–1h 10min/);
   assert.doesNotMatch(html, /duration-badge|duration-circle|<small>Fahrtzeit/);
+});
+
+test("colors the collapsed departure using realtime delay status", () => {
+  const card = makeCard();
+  const planned = new Date(Date.now() + 240000);
+  const real = new Date(planned.getTime() + 180000);
+  const html = card._renderRoutePreview([{ attributes: {
+    Duration: "35min",
+    "Departure Time": planned.toISOString(),
+    "Departure Time Real": real.toISOString(),
+  } }], planned.toISOString());
+  assert.match(html, /class="route-next-time delayed"/);
+  const styles = card._styles();
+  assert.match(styles, /\.route-next-time\.delayed > strong \{ color:#d20a1e/);
+  assert.match(styles, /\.route-next-time > strong[\s\S]*font-size:17px/);
+  assert.match(styles, /\.route-next-time > small, \.route-countdown[\s\S]*font-size:9px/);
 });
 
 test("calculates duration minutes from timestamps and DB Info duration strings", () => {
